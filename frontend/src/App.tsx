@@ -19,7 +19,7 @@ import {
 import type { FormEvent, ReactElement } from "react";
 import { useEffect, useMemo, useState } from "react";
 
-import { downloadVideoFile, parseVideo } from "./api";
+import { DownloadCanceledError, downloadVideoFile, parseVideo } from "./api";
 import type { Quality, QualityOption, VideoInfo } from "./types";
 
 const qualityIcon: Record<Quality, ReactElement> = {
@@ -149,9 +149,10 @@ function App() {
     });
 
     try {
-      const { blob, filename } = await downloadVideoFile(
+      const { bytesWritten, filename } = await downloadVideoFile(
         video.webpageUrl || url,
         option.quality,
+        buildSuggestedFilename(video.title, option.quality),
         ({ receivedBytes, totalBytes }) => {
           setDownloadState((current) => current && current.quality === option.quality
             ? {
@@ -166,16 +167,19 @@ function App() {
       );
 
       setDownloadState((current) => current && current.quality === option.quality
-        ? { ...current, phase: "saving", receivedBytes: blob.size, totalBytes: blob.size }
+        ? { ...current, phase: "saving", receivedBytes: bytesWritten, totalBytes: bytesWritten }
         : current
       );
-      saveBlob(blob, filename);
       setDownloadState((current) => current && current.quality === option.quality
-        ? { ...current, phase: "done", receivedBytes: blob.size, totalBytes: blob.size }
+        ? { ...current, phase: "done", receivedBytes: bytesWritten, totalBytes: bytesWritten }
         : current
       );
-      setNotice("文件已准备完成，浏览器会开始保存文件。");
+      setNotice(`文件已保存为 ${filename}。`);
     } catch (err) {
+      if (err instanceof DownloadCanceledError) {
+        setDownloadState(null);
+        return;
+      }
       setError(err instanceof Error ? err.message : "下载失败，请稍后重试。");
       setDownloadState(null);
     } finally {
@@ -455,17 +459,6 @@ function getDownloadStatusText(state: DownloadState, elapsedSeconds: number) {
   return "下载完成。";
 }
 
-function saveBlob(blob: Blob, filename: string) {
-  const objectUrl = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = objectUrl;
-  anchor.download = filename;
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
-}
-
 function renderPlanValue(value: string): ReactElement | string {
   if (value === "check") {
     return <Check aria-label="支持" size={19} />;
@@ -518,6 +511,16 @@ function isHttpUrl(value: string): boolean {
   } catch {
     return false;
   }
+}
+
+function buildSuggestedFilename(title: string, quality: Quality): string {
+  const extension = quality === "audio" ? "mp3" : "mp4";
+  const safeTitle = title
+    .replace(/[\\/:*?"<>|\r\n]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 120);
+  return `${safeTitle || "video"}-${quality}.${extension}`;
 }
 
 export default App;
