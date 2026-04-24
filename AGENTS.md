@@ -1,0 +1,3 @@
+- 项目需求文档：docs/PRD.md
+- 项目页面设计文档：DESIGN/DESIGN.md
+- 首页设计参考原型：DESIGN/首页.html

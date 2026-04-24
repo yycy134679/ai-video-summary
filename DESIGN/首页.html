@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AI 视频摘要助手 - 智享高效视频学习体验</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-container": "#d6e3f7",
+                        "surface-container-lowest": "#ffffff",
+                        "surface": "#f9f9ff",
+                        "on-tertiary-container": "#ffca81",
+                        "surface-bright": "#f9f9ff",
+                        "on-tertiary-fixed-variant": "#624000",
+                        "surface-container-highest": "#d7e2ff",
+                        "tertiary-fixed": "#ffddb3",
+                        "primary-fixed-dim": "#b2c5ff",
+                        "tertiary": "#5e3c00",
+                        "on-tertiary-fixed": "#291800",
+                        "on-primary-container": "#c4d2ff",
+                        "primary": "#003d9b",
+                        "outline-variant": "#c3c6d6",
+                        "secondary": "#535f70",
+                        "surface-variant": "#d7e2ff",
+                        "on-secondary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "surface-container-low": "#f1f3ff",
+                        "error-container": "#ffdad6",
+                        "on-surface": "#041b3c",
+                        "surface-container": "#e8edff",
+                        "surface-tint": "#0c56d0",
+                        "on-secondary-fixed-variant": "#3b4858",
+                        "on-error-container": "#93000a",
+                        "on-tertiary": "#ffffff",
+                        "inverse-primary": "#b2c5ff",
+                        "on-background": "#041b3c",
+                        "surface-dim": "#cadaff",
+                        "tertiary-container": "#7d5200",
+                        "on-secondary-container": "#596576",
+                        "error": "#ba1a1a",
+                        "on-surface-variant": "#434654",
+                        "outline": "#737685",
+                        "secondary-fixed-dim": "#bbc7db",
+                        "surface-container-high": "#e0e8ff",
+                        "on-primary-fixed-variant": "#0040a2",
+                        "on-error": "#ffffff",
+                        "on-primary-fixed": "#001848",
+                        "background": "#f9f9ff",
+                        "tertiary-fixed-dim": "#ffb950",
+                        "primary-fixed": "#dae2ff",
+                        "inverse-surface": "#1d3052",
+                        "on-secondary-fixed": "#101c2b",
+                        "primary-container": "#0052cc",
+                        "inverse-on-surface": "#edf0ff",
+                        "secondary-fixed": "#d6e3f7"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "24px",
+                        "lg": "40px",
+                        "xl": "64px",
+                        "base": "4px",
+                        "gutter": "24px",
+                        "container-max": "1280px",
+                        "sm": "16px",
+                        "xs": "8px"
+                    },
+                    "fontFamily": {
+                        "h3": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "h2": ["Inter"],
+                        "h1": ["Inter"],
+                        "label-sm": ["Inter"]
+                    },
+                    "fontSize": {
+                        "h3": ["24px", { "lineHeight": "1.4", "fontWeight": "600" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "body-md": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "h2": ["30px", { "lineHeight": "1.3", "fontWeight": "600" }],
+                        "h1": ["40px", { "lineHeight": "1.2", "fontWeight": "700" }],
+                        "label-sm": ["13px", { "lineHeight": "1.2", "letterSpacing": "0.02em", "fontWeight": "500" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+        .soft-shadow {
+            box-shadow: 0 10px 40px -10px rgba(0, 61, 155, 0.1);
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #003d9b 0%, #0052cc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md antialiased pt-[72px]">
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 shadow-sm font-['Inter'] antialiased">
+<div class="flex items-center justify-between px-6 py-4 max-w-7xl mx-auto">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-container" style="font-variation-settings: 'FILL' 1;">smart_toy</span>
+<span class="text-xl font-bold tracking-tight text-blue-700 dark:text-blue-400">AI 视频摘要助手</span>
+</div>
+<div class="hidden md:flex items-center gap-8">
+<a class="text-blue-700 dark:text-blue-400 font-semibold border-b-2 border-blue-700 pb-1" href="#">功能特性</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-blue-600 transition-colors duration-200" href="#pricing">价格方案</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-blue-600 transition-colors duration-200" href="#about">关于我们</a>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-slate-600 dark:text-slate-400 hover:text-blue-600 font-label-sm text-label-sm transition-colors duration-200">登录</button>
+<button class="bg-primary-container text-on-primary px-4 py-2 rounded font-label-sm text-label-sm active:scale-95 transition-transform shadow-sm">免费注册</button>
+</div>
+</div>
+</nav>
+<!-- Hero Section -->
+<header class="relative overflow-hidden bg-surface py-20 lg:py-32 flex flex-col items-center justify-center text-center px-4 sm:px-6 lg:px-8">
+<!-- Abstract Background -->
+<div class="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+<div class="absolute -top-[20%] -right-[10%] w-[50vw] h-[50vw] rounded-full bg-primary-fixed-dim/20 blur-3xl"></div>
+<div class="absolute top-[40%] -left-[10%] w-[40vw] h-[40vw] rounded-full bg-secondary-container/30 blur-3xl"></div>
+</div>
+<div class="relative z-10 max-w-4xl mx-auto w-full">
+<h1 class="font-h1 text-h1 text-on-surface mb-6 tracking-tight">
+                一键提取核心，<span class="gradient-text">重塑视频学习效率</span>
+</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant mb-12 max-w-2xl mx-auto">
+                贴上视频链接，AI 瞬间为您生成精准总结、智能思维导图与原画质下载链接，让知识获取快人一步。
+            </p>
+<!-- Input Area -->
+<div class="glass-panel rounded-xl p-2 md:p-4 max-w-3xl mx-auto flex flex-col sm:flex-row gap-4 items-center soft-shadow mb-8 border border-outline-variant/30">
+<div class="flex-grow flex items-center w-full bg-surface-container-lowest rounded-lg px-4 py-3 border border-outline-variant focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/20 transition-all">
+<span class="material-symbols-outlined text-outline mr-3">link</span>
+<input class="w-full bg-transparent border-none focus:ring-0 p-0 font-body-md text-on-surface placeholder:text-outline outline-none" placeholder="在此粘贴 YouTube, Bilibili 或其他视频平台链接..." type="url"/>
+</div>
+<button class="w-full sm:w-auto whitespace-nowrap bg-primary-container hover:bg-primary text-on-primary font-h3 text-[18px] px-8 py-3.5 rounded-lg shadow-md transition-all active:scale-95 flex items-center justify-center gap-2">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+                    开始分析 / 下载
+                </button>
+</div>
+<!-- Downloader Options Mockup -->
+<div class="flex flex-wrap justify-center gap-4 text-on-surface-variant font-label-sm text-label-sm">
+<div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container border border-outline-variant/50">
+<span class="material-symbols-outlined text-[16px]">high_quality</span>
+                    4K 原画下载
+                </div>
+<div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container border border-outline-variant/50">
+<span class="material-symbols-outlined text-[16px]">hd</span>
+                    1080p 高清
+                </div>
+<div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container border border-outline-variant/50">
+<span class="material-symbols-outlined text-[16px]">sd</span>
+                    720p 流畅
+                </div>
+<div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container border border-outline-variant/50 text-primary-container bg-primary-container/10 border-primary-container/20">
+<span class="material-symbols-outlined text-[16px]">audio_file</span>
+                    纯音频提取
+                </div>
+</div>
+</div>
+</header>
+<!-- Features Section -->
+<section class="py-24 bg-surface-container-lowest px-4 sm:px-6 lg:px-8">
+<div class="max-w-7xl mx-auto">
+<div class="text-center mb-16">
+<h2 class="font-h2 text-h2 text-on-surface mb-4">重新定义视频内容消费</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">基于前沿大模型技术，为您提供全方位的视听信息处理方案</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Feature 1 -->
+<div class="p-8 rounded-xl bg-surface border border-outline-variant/30 hover:shadow-lg transition-shadow duration-300 flex flex-col items-center text-center">
+<div class="w-16 h-16 rounded-full bg-primary-container/10 flex items-center justify-center mb-6 text-primary-container">
+<span class="material-symbols-outlined text-4xl" style="font-variation-settings: 'FILL' 1;">summarize</span>
+</div>
+<h3 class="font-h3 text-h3 text-on-surface mb-3">智能总结</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">提炼长视频核心观点，自动生成时间轴摘要，跳过废话直达重点。</p>
+</div>
+<!-- Feature 2 -->
+<div class="p-8 rounded-xl bg-surface border border-outline-variant/30 hover:shadow-lg transition-shadow duration-300 flex flex-col items-center text-center">
+<div class="w-16 h-16 rounded-full bg-primary-container/10 flex items-center justify-center mb-6 text-primary-container">
+<span class="material-symbols-outlined text-4xl" style="font-variation-settings: 'FILL' 1;">account_tree</span>
+</div>
+<h3 class="font-h3 text-h3 text-on-surface mb-3">思维导图</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">一键将视频结构转化为可视化脑图，支持导出 XMind 格式，构建知识体系。</p>
+</div>
+<!-- Feature 3 -->
+<div class="p-8 rounded-xl bg-surface border border-outline-variant/30 hover:shadow-lg transition-shadow duration-300 flex flex-col items-center text-center">
+<div class="w-16 h-16 rounded-full bg-primary-container/10 flex items-center justify-center mb-6 text-primary-container">
+<span class="material-symbols-outlined text-4xl" style="font-variation-settings: 'FILL' 1;">bolt</span>
+</div>
+<h3 class="font-h3 text-h3 text-on-surface mb-3">高效学习</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">双语字幕生成，关键术语解释，让专业课程或外语演讲的吸收率提升 300%。</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Pricing / Member Benefits Table -->
+<section class="py-24 bg-surface px-4 sm:px-6 lg:px-8 relative" id="pricing">
+<div class="max-w-5xl mx-auto">
+<!-- Limited Time Banner -->
+<div class="bg-gradient-to-r from-primary to-primary-container text-on-primary rounded-lg p-4 mb-12 flex flex-col sm:flex-row items-center justify-between shadow-md">
+<div class="flex items-center gap-3 mb-4 sm:mb-0">
+<span class="material-symbols-outlined animate-pulse">local_fire_department</span>
+<div>
+<p class="font-h3 text-[18px] font-bold">限时优惠：年度会员低至 5 折</p>
+<p class="font-label-sm text-label-sm opacity-90">活动剩余时间: 02天 14小时 36分</p>
+</div>
+</div>
+<button class="bg-surface-container-lowest text-primary-container px-6 py-2 rounded font-label-sm text-label-sm font-bold hover:bg-surface transition-colors whitespace-nowrap">
+                    立即抢购
+                </button>
+</div>
+<div class="text-center mb-12">
+<h2 class="font-h2 text-h2 text-on-surface mb-4">选择适合您的方案</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">解锁无限潜力，构建您的私人视频知识库</p>
+</div>
+<div class="glass-panel rounded-2xl overflow-hidden border border-outline-variant/30 soft-shadow">
+<div class="grid grid-cols-3 border-b border-outline-variant/30 bg-surface-container/50">
+<div class="p-6 font-h3 text-h3 text-on-surface flex items-end">功能权益</div>
+<div class="p-6 text-center border-l border-outline-variant/30">
+<div class="font-h3 text-[20px] text-on-surface mb-1">基础版 (免费)</div>
+<div class="font-body-md text-on-surface-variant">体验核心功能</div>
+</div>
+<div class="p-6 text-center border-l border-outline-variant/30 bg-primary-fixed/20 relative">
+<div class="absolute top-0 right-0 bg-tertiary-fixed text-on-tertiary-fixed font-label-sm text-[11px] px-2 py-1 rounded-bl-lg rounded-tr-xl font-bold">推荐</div>
+<div class="font-h3 text-[20px] text-primary-container mb-1">高级会员</div>
+<div class="font-body-md text-on-surface-variant">无限制的高效工作流</div>
+</div>
+</div>
+<div class="divide-y divide-outline-variant/20 bg-surface-container-lowest">
+<!-- Row 1 -->
+<div class="grid grid-cols-3 hover:bg-surface-container/30 transition-colors">
+<div class="p-4 px-6 font-body-md text-on-surface flex items-center">智能总结次数</div>
+<div class="p-4 text-center font-body-md text-on-surface-variant border-l border-outline-variant/30 flex items-center justify-center">10 次 / 月</div>
+<div class="p-4 text-center font-body-md text-on-surface border-l border-outline-variant/30 bg-primary-fixed/5 flex items-center justify-center font-semibold">无限制</div>
+</div>
+<!-- Row 2 -->
+<div class="grid grid-cols-3 hover:bg-surface-container/30 transition-colors">
+<div class="p-4 px-6 font-body-md text-on-surface flex items-center">视频下载画质</div>
+<div class="p-4 text-center font-body-md text-on-surface-variant border-l border-outline-variant/30 flex items-center justify-center">最高 1080p</div>
+<div class="p-4 text-center font-body-md text-on-surface border-l border-outline-variant/30 bg-primary-fixed/5 flex items-center justify-center font-semibold text-primary-container">支持 4K 原画</div>
+</div>
+<!-- Row 3 -->
+<div class="grid grid-cols-3 hover:bg-surface-container/30 transition-colors">
+<div class="p-4 px-6 font-body-md text-on-surface flex items-center">思维导图导出</div>
+<div class="p-4 text-center border-l border-outline-variant/30 flex items-center justify-center text-outline">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</div>
+<div class="p-4 text-center border-l border-outline-variant/30 bg-primary-fixed/5 flex items-center justify-center text-primary-container">
+<span class="material-symbols-outlined text-[20px]">check_circle</span>
+</div>
+</div>
+<!-- Row 4 -->
+<div class="grid grid-cols-3 hover:bg-surface-container/30 transition-colors">
+<div class="p-4 px-6 font-body-md text-on-surface flex items-center">处理速度</div>
+<div class="p-4 text-center font-body-md text-on-surface-variant border-l border-outline-variant/30 flex items-center justify-center">标准队列</div>
+<div class="p-4 text-center font-body-md text-on-surface border-l border-outline-variant/30 bg-primary-fixed/5 flex items-center justify-center font-semibold">极速通道优先</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Testimonials -->
+<section class="py-24 bg-surface-container-lowest px-4 sm:px-6 lg:px-8 border-t border-outline-variant/20">
+<div class="max-w-7xl mx-auto">
+<div class="text-center mb-16">
+<h2 class="font-h2 text-h2 text-on-surface mb-4">他们都在用</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">听听各行各业的专业人士如何评价</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+<!-- Review 1 -->
+<div class="bg-surface p-6 rounded-xl border border-outline-variant/30">
+<div class="flex items-center mb-4">
+<div class="w-12 h-12 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container font-bold text-lg mr-4">L</div>
+<div>
+<div class="font-h3 text-[16px] text-on-surface">林同学</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">在读研究生</div>
+</div>
+<div class="ml-auto text-tertiary-fixed-dim">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant italic">"看长篇讲座视频再也不头疼了。思维导图功能帮我理清了复杂的逻辑脉络，复习效率提升了不止一星半点。强烈推荐给需要大量阅读视频文献的学生！"</p>
+</div>
+<!-- Review 2 -->
+<div class="bg-surface p-6 rounded-xl border border-outline-variant/30">
+<div class="flex items-center mb-4">
+<div class="w-12 h-12 rounded-full bg-primary-container/20 flex items-center justify-center text-primary-container font-bold text-lg mr-4">Z</div>
+<div>
+<div class="font-h3 text-[16px] text-on-surface">张经理</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">产品经理</div>
+</div>
+<div class="ml-auto text-tertiary-fixed-dim">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant italic">"竞品分析和行业发布会总结必备神器。以前要花半天时间看的内容，现在几分钟就能掌握核心要点。而且直接下载高画质视频素材也非常方便。"</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Footer -->
+<footer class="w-full py-12 bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 text-sm text-slate-500 dark:text-slate-400 font-['Inter']" id="about">
+<div class="flex flex-col md:flex-row justify-between items-center px-8 max-w-7xl mx-auto gap-4">
+<div class="font-bold text-slate-900 dark:text-white">
+                © 2024 AI 视频摘要助手. 智享高效视频学习体验。
+            </div>
+<div class="flex gap-6">
+<a class="text-slate-500 dark:text-slate-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors" href="#">服务条款</a>
+<a class="text-slate-500 dark:text-slate-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors" href="#">隐私政策</a>
+<a class="text-slate-500 dark:text-slate-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors" href="#">API接口</a>
+<a class="text-slate-500 dark:text-slate-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors" href="#">联系支持</a>
+</div>
+</div>
+</footer>
+</body></html>
