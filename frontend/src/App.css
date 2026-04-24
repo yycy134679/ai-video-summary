@@ -3,7 +3,15 @@
 :root {
   color: #041b3c;
   background: #f9f9ff;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    "Microsoft YaHei",
+    sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -147,7 +155,11 @@ a {
 .hero-search button,
 .offer-banner button {
   border: 0;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, color 0.18s ease;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease,
+    color 0.18s ease;
 }
 
 .text-button {
@@ -178,7 +190,11 @@ a {
   min-height: 508px;
   padding: 98px 20px 72px;
   background:
-    radial-gradient(circle at 62% 24%, rgba(178, 197, 255, 0.34), transparent 34%),
+    radial-gradient(
+      circle at 62% 24%,
+      rgba(178, 197, 255, 0.34),
+      transparent 34%
+    ),
     linear-gradient(115deg, #f9fbff 0%, #f3f6ff 50%, #e8edff 100%);
 }
 
@@ -233,7 +249,7 @@ a {
   align-items: center;
   justify-content: center;
   width: 42px;
-  height: 42px;
+  height: 48px;
   color: #737685;
 }
 
@@ -434,7 +450,10 @@ a {
   background: #ffffff;
   border: 1px solid rgba(195, 198, 214, 0.78);
   border-radius: 10px;
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
 }
 
 .quality-card:hover:not(:disabled) {
@@ -592,7 +611,9 @@ a {
   border: 1px solid #e1e5f1;
   border-radius: 12px;
   box-shadow: 0 14px 32px rgba(4, 27, 60, 0.04);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .feature-card:hover {
