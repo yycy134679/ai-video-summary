@@ -1,7 +1,7 @@
 import pytest
 
 from backend.app.models import VideoInfo
-from backend.app.providers import douyin_provider
+from backend.app.providers import bilibili_provider, douyin_provider
 from backend.app.video_service import build_quality_options, validate_video_url
 
 
@@ -182,3 +182,133 @@ def test_douyin_extract_video_info_uses_douyin_provider(monkeypatch):
     result = extract_video_info("分享链接 https://v.douyin.com/iAbCdEf/")
 
     assert result.title == "抖音视频"
+
+
+def test_bilibili_extract_first_url_from_share_text():
+    share_text = "看看这个 B 站视频 https://www.bilibili.com/video/BV1TaqYBcEJc/?spm_id_from=333"
+
+    assert (
+        bilibili_provider.extract_first_url(share_text)
+        == "https://www.bilibili.com/video/BV1TaqYBcEJc/?spm_id_from=333"
+    )
+
+
+def test_bilibili_build_media_from_page_maps_playinfo_and_initial_state():
+    html = """
+    <html>
+      <head><title>兜底标题_哔哩哔哩_bilibili</title></head>
+      <body>
+        <script>
+          window.__playinfo__ = {
+            "data": {
+              "timelength": 120000,
+              "dash": {
+                "video": [
+                  {
+                    "id": 80,
+                    "baseUrl": "https://upos.example.com/video-1080.m4s",
+                    "height": 1080,
+                    "width": 1920,
+                    "bandwidth": 5000000,
+                    "codecs": "avc1.640032",
+                    "mimeType": "video/mp4"
+                  },
+                  {
+                    "id": 64,
+                    "baseUrl": "https://upos.example.com/video-720.m4s",
+                    "height": 720,
+                    "width": 1280,
+                    "bandwidth": 2500000,
+                    "codecs": "avc1.640028",
+                    "mimeType": "video/mp4"
+                  }
+                ],
+                "audio": [
+                  {
+                    "id": 30280,
+                    "baseUrl": "https://upos.example.com/audio.m4s",
+                    "bandwidth": 192000,
+                    "codecs": "mp4a.40.2",
+                    "mimeType": "audio/mp4"
+                  }
+                ]
+              }
+            }
+          };
+        </script>
+        <script>
+          window.__INITIAL_STATE__ = {
+            "videoData": {
+              "bvid": "BV1TaqYBcEJc",
+              "title": "测试 B 站视频",
+              "duration": 118,
+              "pic": "//i0.hdslb.com/cover.jpg",
+              "owner": {"name": "UP 主"}
+            }
+          };
+        </script>
+      </body>
+    </html>
+    """
+
+    media = bilibili_provider.build_media_from_page(
+        html,
+        "https://www.bilibili.com/video/BV1TaqYBcEJc/",
+    )
+    options = {item.quality: item for item in bilibili_provider.build_quality_options(media)}
+
+    assert media.video_id == "BV1TaqYBcEJc"
+    assert media.title == "测试 B 站视频"
+    assert media.uploader == "UP 主"
+    assert media.duration == 118
+    assert media.thumbnail == "https://i0.hdslb.com/cover.jpg"
+    assert options["source"].available is True
+    assert options["1080p"].available is True
+    assert options["720p"].available is True
+    assert options["4k"].available is False
+    assert options["audio"].available is True
+
+
+def test_bilibili_build_media_from_page_ignores_non_assignment_playinfo_reference():
+    html = """
+    <html>
+      <script>
+        if (window.__playinfo__) {
+          primarySetting.prefetch = { playUrl: window.__playinfo__ }
+        }
+      </script>
+      <script>
+        window.__INITIAL_STATE__ = {
+          "videoData": {
+            "bvid": "BV1mAAmzqEfP",
+            "title": "只有初始状态的视频",
+            "cid": 36319134306
+          }
+        };
+      </script>
+    </html>
+    """
+
+    with pytest.raises(Exception, match="未找到播放信息"):
+        bilibili_provider.build_media_from_page(
+            html,
+            "https://www.bilibili.com/video/BV1mAAmzqEfP/",
+        )
+
+
+def test_bilibili_extract_video_info_uses_bilibili_provider(monkeypatch):
+    def fake_extract_video_info(value: str) -> VideoInfo:
+        assert "bilibili.com" in value
+        return VideoInfo(
+            title="B 站视频",
+            webpageUrl="https://www.bilibili.com/video/BV1TaqYBcEJc/",
+            options=[],
+        )
+
+    monkeypatch.setattr(bilibili_provider, "extract_video_info", fake_extract_video_info)
+
+    from backend.app.video_service import extract_video_info
+
+    result = extract_video_info("https://www.bilibili.com/video/BV1TaqYBcEJc/")
+
+    assert result.title == "B 站视频"

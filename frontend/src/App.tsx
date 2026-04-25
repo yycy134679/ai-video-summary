@@ -265,7 +265,7 @@ function App() {
               <section className="download-result" aria-labelledby="result-title">
                 <div className="result-media">
                   {video.thumbnail ? (
-                    <img src={video.thumbnail} alt={`${video.title} 封面`} />
+                    <img src={video.thumbnail} alt={`${video.title} 封面`} referrerPolicy="no-referrer" />
                   ) : (
                     <div className="thumbnail-empty">
                       <Film aria-hidden="true" size={32} />
