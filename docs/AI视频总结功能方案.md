@@ -812,7 +812,7 @@ npm run build
 
 - DeepSeek V4 文档近期变化快：实现前必须再次核验官方模型列表、价格、thinking mode 和 JSON Output 说明。
 - DeepSeek 1M 上下文不等于视频处理无限制：下载、音频抽取、STT、网络和浏览器渲染仍有资源限制。
-- STT 目前有时长和音频大小配置：若用户希望真正处理更长视频，需要单独调整 `STEP_ASR_MAX_DURATION_MINUTES` 和 `STEP_ASR_MAX_AUDIO_FILE_MB`。
+- STT 目前有时长配置；音频超过 StepAudio 单次请求安全阈值时会自动分段转写并合并文稿。
 - 模型 JSON 可能为空或不符合结构：后端必须校验，不得把未验证 JSON 直接交给前端。
 - 问答每轮带完整文稿会增加延迟和费用：本地自用可接受，但后续公网化必须加入配额和成本控制。
 - 封面可能被 CDN 拒绝：继续保留 `referrerPolicy="no-referrer"`，无封面时提供稳定占位。
