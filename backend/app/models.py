@@ -62,3 +62,4 @@ class HealthInfo(BaseModel):
     status: str
     ffmpegAvailable: bool
     sttAvailable: bool = False
+    deepseekAvailable: bool = False

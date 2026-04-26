@@ -5,7 +5,7 @@ import shutil
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from starlette.background import BackgroundTask
 
 from backend.app.models import (
@@ -16,7 +16,10 @@ from backend.app.models import (
     VideoInfo,
     VideoParseRequest,
 )
+from backend.app.deepseek_client import deepseek_configured
 from backend.app.stepaudio_client import stepaudio_configured
+from backend.app.summary_models import QaQuestionRequest, SummaryStreamRequest
+from backend.app.summary_service import stream_qa_events, stream_summary_events
 from backend.app.transcript_service import (
     create_transcript_task,
     get_transcript_task,
@@ -52,6 +55,7 @@ async def health() -> HealthInfo:
         status="ok",
         ffmpegAvailable=ffmpeg_available(),
         sttAvailable=stepaudio_configured(),
+        deepseekAvailable=deepseek_configured(),
     )
 
 
@@ -104,6 +108,24 @@ async def get_transcript(task_id: str) -> TranscriptTaskInfo:
     if task is None:
         raise HTTPException(status_code=404, detail="转写任务不存在或已过期。")
     return task
+
+
+@app.post("/api/summaries/stream")
+async def stream_summary(payload: SummaryStreamRequest) -> StreamingResponse:
+    return StreamingResponse(
+        stream_summary_events(payload),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.post("/api/summaries/{session_id}/questions/stream")
+async def stream_question(session_id: str, payload: QaQuestionRequest) -> StreamingResponse:
+    return StreamingResponse(
+        stream_qa_events(session_id, payload),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 def _attach_auto_transcript_task(
