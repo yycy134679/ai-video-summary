@@ -885,86 +885,6 @@ a {
   gap: 12px;
 }
 
-.progress-timeline {
-  display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
-  gap: 10px;
-  margin: 0 0 22px;
-  padding: 0;
-  list-style: none;
-}
-
-.stage-item {
-  min-height: 86px;
-  padding: 12px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-}
-
-.stage-dot {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  margin-bottom: 8px;
-  background: #eef2f7;
-  border-radius: 50%;
-}
-
-.stage-dot::after {
-  width: 8px;
-  height: 8px;
-  content: "";
-  background: #9aa7b8;
-  border-radius: 50%;
-}
-
-.stage-running .stage-dot::after {
-  display: none;
-}
-
-.stage-completed .stage-dot {
-  background: #e6f6ee;
-}
-
-.stage-completed .stage-dot::after {
-  background: var(--success);
-}
-
-.stage-running {
-  border-color: rgba(0, 74, 173, 0.36);
-  box-shadow: 0 12px 28px rgba(0, 74, 173, 0.08);
-}
-
-.stage-running .stage-dot {
-  color: var(--primary);
-  background: var(--primary-soft);
-}
-
-.stage-failed {
-  border-color: rgba(180, 35, 24, 0.22);
-  background: #fff8f7;
-}
-
-.stage-item strong,
-.stage-item small {
-  display: block;
-}
-
-.stage-item strong {
-  color: var(--ink);
-  font-size: 13px;
-}
-
-.stage-item small {
-  margin-top: 4px;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.45;
-}
-
 .report-layout {
   display: grid;
   grid-template-columns: clamp(300px, 25vw, 420px) minmax(0, 1fr);
@@ -1288,8 +1208,8 @@ a {
 }
 
 .typing-indicator,
-.loading-block,
 .empty-panel,
+.summary-progress-state,
 .transcript-placeholder {
   display: flex;
   align-items: center;
@@ -1303,8 +1223,8 @@ a {
   font-weight: 800;
 }
 
-.loading-block,
-.empty-panel {
+.empty-panel,
+.summary-progress-state {
   min-height: 320px;
   justify-content: center;
   color: var(--muted);
@@ -1319,8 +1239,79 @@ a {
   padding: 28px;
 }
 
+.summary-progress-state {
+  position: relative;
+  flex-direction: column;
+  padding: 36px min(42px, 8vw);
+  overflow: hidden;
+}
+
+.summary-progress-state::before {
+  position: absolute;
+  inset: 22px auto auto 50%;
+  width: 180px;
+  height: 180px;
+  content: "";
+  background: radial-gradient(circle, rgba(0, 74, 173, 0.12), transparent 66%);
+  transform: translateX(-50%);
+}
+
+.summary-progress-icon {
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  color: var(--primary);
+  background: var(--primary-soft);
+  border: 1px solid rgba(0, 74, 173, 0.16);
+  border-radius: 50%;
+}
+
+.summary-progress-state .eyebrow,
+.summary-progress-state strong,
+.summary-progress-track,
+.summary-progress-hint {
+  z-index: 1;
+}
+
+.summary-progress-state .eyebrow {
+  margin: 8px 0 0;
+}
+
+.summary-progress-state strong {
+  color: var(--ink);
+  font-size: clamp(22px, 3vw, 30px);
+  line-height: 1.2;
+}
+
+.summary-progress-track {
+  position: relative;
+  width: min(420px, 100%);
+  height: 10px;
+  margin-top: 14px;
+  overflow: hidden;
+  background: #e2e8f4;
+  border-radius: 999px;
+}
+
+.summary-progress-bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 42%;
+  background: linear-gradient(90deg, rgba(0, 74, 173, 0), #004aad 45%, #3b82f6);
+  border-radius: inherit;
+  animation: progressSlide 1.35s ease-in-out infinite;
+}
+
+.summary-progress-hint {
+  color: var(--muted);
+  font-size: 14px;
+}
+
 .empty-panel svg,
-.loading-block svg {
+.summary-progress-state svg {
   color: var(--primary);
 }
 
@@ -1470,28 +1461,6 @@ a {
   padding: 0 13px;
 }
 
-.progress-track {
-  position: relative;
-  height: 8px;
-  margin: 11px 0 9px;
-  overflow: hidden;
-  background: #e2e8f4;
-  border-radius: 999px;
-}
-
-.progress-bar {
-  height: 100%;
-  background: linear-gradient(90deg, #004aad, #2675df);
-  border-radius: inherit;
-  transition: width 0.18s ease;
-}
-
-.progress-bar-indeterminate {
-  position: absolute;
-  width: 38%;
-  animation: progressSlide 1.2s ease-in-out infinite;
-}
-
 .empty-text {
   margin: 0;
   color: var(--muted);
@@ -1592,10 +1561,6 @@ a {
     width: min(100% - 48px, 960px);
   }
 
-  .progress-timeline {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
   .style-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -1666,7 +1631,6 @@ a {
   }
 
   .style-grid,
-  .progress-timeline,
   .tabs {
     grid-template-columns: 1fr;
   }
