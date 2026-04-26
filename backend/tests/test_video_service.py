@@ -1,7 +1,8 @@
 import pytest
 import httpx
+from fastapi.testclient import TestClient
 
-from backend.app.models import VideoInfo
+from backend.app.models import TranscriptTaskInfo, VideoInfo
 from backend.app.providers import bilibili_provider, douyin_provider
 from backend.app.video_service import build_quality_options, validate_video_url
 
@@ -451,3 +452,66 @@ def test_bilibili_extract_video_info_uses_bilibili_provider(monkeypatch):
     assert result.title == "B 站视频"
     assert result.subtitles == []
     assert result.subtitleStatus == "unavailable"
+
+
+def test_parse_endpoint_starts_transcript_task_when_subtitles_unavailable(monkeypatch):
+    import backend.app.main as main
+
+    def fake_extract_video_info(value: str) -> VideoInfo:
+        return VideoInfo(
+            title="无字幕视频",
+            duration=120,
+            webpageUrl="https://example.com/video",
+            options=[],
+            subtitleStatus="unavailable",
+            subtitleMessage="当前视频没有可匿名访问字幕。",
+        )
+
+    def fake_create_transcript_task(value: str, duration: int | None = None) -> TranscriptTaskInfo:
+        assert value == "https://example.com/video"
+        assert duration == 120
+        return TranscriptTaskInfo(taskId="task-auto", status="queued", message="等待开始自动转写。")
+
+    started_tasks: list[str] = []
+
+    monkeypatch.setattr(main, "extract_video_info", fake_extract_video_info)
+    monkeypatch.setattr(main, "create_transcript_task", fake_create_transcript_task)
+    monkeypatch.setattr(main, "run_transcript_task", lambda task_id: started_tasks.append(task_id))
+
+    response = TestClient(main.app).post("/api/videos/parse", json={"url": "https://example.com/video"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["transcriptTask"]["taskId"] == "task-auto"
+    assert payload["transcriptTask"]["status"] == "queued"
+    assert started_tasks == ["task-auto"]
+
+
+def test_parse_endpoint_skips_transcript_task_when_subtitles_available(monkeypatch):
+    import backend.app.main as main
+
+    def fake_extract_video_info(value: str) -> VideoInfo:
+        return VideoInfo(
+            title="有字幕视频",
+            webpageUrl="https://example.com/video",
+            options=[],
+            subtitleStatus="available",
+            subtitleMessage=None,
+            subtitles=[
+                {
+                    "language": "zh-CN",
+                    "languageLabel": "中文",
+                    "text": "已有字幕",
+                    "cues": [],
+                }
+            ],
+        )
+
+    monkeypatch.setattr(main, "extract_video_info", fake_extract_video_info)
+
+    response = TestClient(main.app).post("/api/videos/parse", json={"url": "https://example.com/video"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["subtitleStatus"] == "available"
+    assert payload["transcriptTask"] is None

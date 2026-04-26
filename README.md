@@ -1,6 +1,6 @@
 # AI 视频摘要助手
 
-本期实现范围是本地自用的视频解析下载 MVP：粘贴公开视频链接，解析视频信息，选择原视频 / 4K / 1080P / 720P / 音频后交给浏览器下载。
+本期实现范围是本地自用的视频解析下载与文稿 MVP：粘贴公开视频链接，解析视频信息，选择原视频 / 4K / 1080P / 720P / 音频后交给浏览器下载；如果视频没有公开字幕或字幕解析失败，会自动触发 StepAudio 2.5 ASR 生成文字稿。
 
 暂不包含 AI 总结、账号、会员、数据库、多用户队列或公网部署安全策略。
 
@@ -19,6 +19,7 @@
 - Python 3.11+
 - Node.js 20+
 - ffmpeg
+- StepFun API Key（自动 STT 需要）：在项目根目录 `.env` 中配置 `STEP_API_KEY`
 
 ## 启动后端
 
@@ -26,6 +27,8 @@
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements.txt
+cp .env.example .env
+# 编辑 .env，填入 STEP_API_KEY
 uvicorn backend.app.main:app --reload
 ```
 
@@ -45,6 +48,8 @@ npm run dev
 
 - `POST /api/videos/parse`：解析公开视频链接，返回视频基础信息和可用下载档位。
 - `GET /api/videos/download?url=...&quality=1080p`：按指定档位下载，浏览器以附件形式保存文件。
+- `POST /api/transcripts`：手动创建视频转写任务。
+- `GET /api/transcripts/{taskId}`：查询转写任务状态和文稿结果。
 
 ## 说明
 
@@ -52,3 +57,5 @@ npm run dev
 - B 站公开视频优先走本项目内置网页解析链路，读取页面公开播放信息后下载并合并音视频。
 - 其他平台下载能力由 `yt-dlp` 提供，支持平台范围以当前安装版本为准。
 - 高画质音视频合并和音频导出依赖 `ffmpeg`。
+- 自动 STT 仅在公开字幕不可用时触发；未在 `.env` 中配置 `STEP_API_KEY` 时不会影响视频解析和下载，只会提示文稿暂不可用。
+- `.env` 中的 STT 时长和音频大小限制使用分钟与 MB 配置，见 `.env.example`。
