@@ -39,7 +39,6 @@ import { stageDefinitions, summaryStyles } from "./constants/summary";
 import type {
   MindMapNode,
   QaMessage,
-  StageStatus,
   StructuredSummary,
   SummaryStage,
   SummaryStageEvent,
@@ -360,7 +359,6 @@ function App() {
           <SummaryPage
             hasResultSurface={hasResultSurface}
             video={video}
-            stages={stages}
             currentStage={currentStage}
             summaryMarkdown={summaryMarkdown}
             structuredSummary={structuredSummary}
@@ -630,7 +628,6 @@ function HomePage({
 function SummaryPage({
   hasResultSurface,
   video,
-  stages,
   currentStage,
   summaryMarkdown,
   structuredSummary,
@@ -653,7 +650,6 @@ function SummaryPage({
 }: {
   hasResultSurface: boolean;
   video: VideoInfo | null;
-  stages: Record<SummaryStage, SummaryStageEvent>;
   currentStage: SummaryStage | null;
   summaryMarkdown: string;
   structuredSummary: StructuredSummary | null;
@@ -723,8 +719,6 @@ function SummaryPage({
           </div>
         </div>
 
-        <ProgressTimeline stages={stages} currentStage={currentStage} />
-
         <div className="report-layout">
           <VideoPreviewPanel video={video} />
 
@@ -749,7 +743,8 @@ function SummaryPage({
                 <SummaryPanel
                   markdown={summaryMarkdown}
                   summary={structuredSummary}
-                  isRunning={isRunning && stages.summarizing.status === "running"}
+                  isRunning={isRunning}
+                  currentStage={currentStage}
                 />
               ) : null}
               {activeTab === "mindmap" ? (
@@ -809,31 +804,6 @@ function StatusMessages({
         </div>
       ))}
     </div>
-  );
-}
-
-function ProgressTimeline({
-  stages,
-  currentStage
-}: {
-  stages: Record<SummaryStage, SummaryStageEvent>;
-  currentStage: SummaryStage | null;
-}) {
-  return (
-    <ol className="progress-timeline" aria-label="处理进度">
-      {stageDefinitions.map((item) => {
-        const stage = stages[item.id];
-        return (
-          <li className={`stage-item stage-${stage.status}`} key={item.id}>
-            <span className="stage-dot">
-              {stage.status === "running" ? <Loader2 aria-hidden="true" className="spin" size={14} /> : null}
-            </span>
-            <strong>{item.label}</strong>
-            <small>{currentStage === item.id ? stage.message : statusLabel(stage.status)}</small>
-          </li>
-        );
-      })}
-    </ol>
   );
 }
 
@@ -900,19 +870,16 @@ function TabButton({
 function SummaryPanel({
   markdown,
   summary,
-  isRunning
+  isRunning,
+  currentStage
 }: {
   markdown: string;
   summary: StructuredSummary | null;
   isRunning: boolean;
+  currentStage: SummaryStage | null;
 }) {
   if (!markdown && isRunning) {
-    return (
-      <div className="loading-block">
-        <Loader2 aria-hidden="true" className="spin" size={20} />
-        <span>正在生成摘要，内容会以打字机效果出现。</span>
-      </div>
-    );
+    return <SummaryProgressState currentStage={currentStage} />;
   }
 
   if (!markdown) {
@@ -950,6 +917,34 @@ function SummaryPanel({
       ) : null}
     </article>
   );
+}
+
+function SummaryProgressState({ currentStage }: { currentStage: SummaryStage | null }) {
+  const label = getCompactStageLabel(currentStage);
+
+  return (
+    <div className="summary-progress-state" role="status" aria-live="polite">
+      <div className="summary-progress-icon">
+        <Loader2 aria-hidden="true" className="spin" size={20} />
+      </div>
+      <p className="eyebrow">智能总结处理中</p>
+      <strong>{label}</strong>
+      <div className="summary-progress-track" aria-hidden="true">
+        <span className="summary-progress-bar" />
+      </div>
+      <span className="summary-progress-hint">完成后摘要会自动显示在这里。</span>
+    </div>
+  );
+}
+
+function getCompactStageLabel(stage: SummaryStage | null): string {
+  if (stage === "loading_transcript" || stage === "transcribing") {
+    return "视频转写";
+  }
+  if (stage === "summarizing" || stage === "building_mindmap" || stage === "preparing_qa" || stage === "completed") {
+    return "生成总结";
+  }
+  return "解析视频";
 }
 
 function MindMapPanel({
@@ -1194,19 +1189,6 @@ function createInitialStages(): Record<SummaryStage, SummaryStageEvent> {
     };
     return acc;
   }, {} as Record<SummaryStage, SummaryStageEvent>);
-}
-
-function statusLabel(status: StageStatus): string {
-  if (status === "running") {
-    return "进行中";
-  }
-  if (status === "completed") {
-    return "已完成";
-  }
-  if (status === "failed") {
-    return "失败";
-  }
-  return "等待中";
 }
 
 function exportMindMapSvg(svg: SVGSVGElement | null, title: string) {
