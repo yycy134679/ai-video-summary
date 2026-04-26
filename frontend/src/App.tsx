@@ -34,6 +34,8 @@ import {
   streamQaAnswer,
   streamVideoSummary
 } from "./api";
+import { heroMetrics, planRows } from "./constants/home";
+import { stageDefinitions, summaryStyles } from "./constants/summary";
 import type {
   MindMapNode,
   QaMessage,
@@ -45,31 +47,10 @@ import type {
   SummaryTranscript,
   VideoInfo
 } from "./types";
-
-const summaryStyles: Array<{ value: SummaryStyle; label: string; description: string }> = [
-  { value: "study_notes", label: "学习笔记", description: "结构完整，适合复习沉淀" },
-  { value: "quick_read", label: "简洁速读", description: "高密度提炼，快速掌握重点" },
-  { value: "deep_analysis", label: "深度分析", description: "强调因果、风险和反例" },
-  { value: "business_insight", label: "商业洞察", description: "聚焦策略、机会和行动" },
-  { value: "custom", label: "自定义", description: "按你的关注点调整摘要正文" }
-];
-
-const stageDefinitions: Array<{ id: SummaryStage; label: string }> = [
-  { id: "validating_url", label: "校验链接" },
-  { id: "parsing", label: "解析视频" },
-  { id: "loading_transcript", label: "获取字幕" },
-  { id: "transcribing", label: "自动转写" },
-  { id: "summarizing", label: "生成摘要" },
-  { id: "building_mindmap", label: "生成脑图" },
-  { id: "preparing_qa", label: "准备问答" },
-  { id: "completed", label: "完成" }
-];
-
-const heroMetrics = [
-  { value: "12x", label: "长视频吸收效率" },
-  { value: "4K", label: "原画与音频保留" },
-  { value: "0", label: "本地历史留存" }
-];
+import { formatCueTime, formatDuration } from "./utils/format";
+import { collectNodeIds, getMindMapRows, wrapText } from "./utils/mindmap";
+import { buildSummaryExport } from "./utils/summaryExport";
+import { isHttpUrl, safeFilename } from "./utils/url";
 
 const premiumSignals = [
   { icon: <Clock3 aria-hidden="true" size={18} />, title: "1 小时课程", text: "压缩成可复习的结构化笔记" },
@@ -81,13 +62,6 @@ const valueCards = [
   { icon: <Sparkles aria-hidden="true" size={20} />, title: "摘要像研究助理", text: "不是截几句字幕，而是按目标产出要点、风险、行动项和追问入口。" },
   { icon: <TrendingUp aria-hidden="true" size={20} />, title: "适合高频专业输入", text: "课程、发布会、访谈、竞品视频都能沉淀成可检索的知识资产。" },
   { icon: <ShieldCheck aria-hidden="true" size={20} />, title: "先保护本地边界", text: "不保存历史、不读取 Cookie，先让用户对隐私和处理链路有确定感。" }
-];
-
-const planRows = [
-  ["AI 视频总结次数", "轻量体验", "高频无限使用"],
-  ["长视频转写与摘要", "标准处理", "优先队列与更长时长"],
-  ["知识资产导出", "复制 Markdown", "脑图、原文、摘要批量导出"],
-  ["下载能力", "公开视频下载", "4K / 音频 / 大文件进度体验"]
 ];
 
 type ActiveTab = "summary" | "mindmap" | "transcript" | "qa";
@@ -1235,25 +1209,6 @@ function statusLabel(status: StageStatus): string {
   return "等待中";
 }
 
-function getMindMapRows(root: MindMapNode, expandedIds: Set<string>) {
-  const rows: Array<{ node: MindMapNode; depth: number; parentId: string | null }> = [];
-
-  function visit(node: MindMapNode, depth: number, parentId: string | null) {
-    rows.push({ node, depth, parentId });
-    if (!expandedIds.has(node.id)) {
-      return;
-    }
-    node.children.forEach((child) => visit(child, depth + 1, node.id));
-  }
-
-  visit(root, 0, null);
-  return rows;
-}
-
-function collectNodeIds(root: MindMapNode): string[] {
-  return [root.id, ...root.children.flatMap((child) => collectNodeIds(child))];
-}
-
 function exportMindMapSvg(svg: SVGSVGElement | null, title: string) {
   if (!svg) {
     return;
@@ -1309,74 +1264,6 @@ function downloadBlob(blob: Blob, filename: string) {
   link.download = filename;
   link.click();
   URL.revokeObjectURL(url);
-}
-
-function buildSummaryExport(video: VideoInfo, transcript: SummaryTranscript | null, markdown: string): string {
-  const source = transcript?.source === "subtitle" ? "公开字幕" : transcript?.source === "asr" ? "StepAudio ASR" : "未知";
-  return [
-    `# ${video.title}`,
-    "",
-    `- 来源：${video.webpageUrl}`,
-    `- 作者：${video.uploader || "未知作者"}`,
-    `- 时长：${formatDuration(video.duration)}`,
-    `- 文稿来源：${source}`,
-    "",
-    markdown.trim()
-  ].join("\n");
-}
-
-function formatDuration(duration: number | null): string {
-  if (!duration || duration <= 0) {
-    return "未知时长";
-  }
-  const hours = Math.floor(duration / 3600);
-  const minutes = Math.floor((duration % 3600) / 60);
-  const seconds = duration % 60;
-  if (hours > 0) {
-    return `${hours}:${pad(minutes)}:${pad(seconds)}`;
-  }
-  return `${minutes}:${pad(seconds)}`;
-}
-
-function formatCueTime(seconds: number): string {
-  const safeSeconds = Math.max(0, Math.floor(seconds));
-  const minutes = Math.floor(safeSeconds / 60);
-  const rest = safeSeconds % 60;
-  return `${minutes}:${pad(rest)}`;
-}
-
-function pad(value: number): string {
-  return value.toString().padStart(2, "0");
-}
-
-function isHttpUrl(value: string): boolean {
-  const urlMatch = value.match(/https?:\/\/[^\s]+/i);
-  const candidate = urlMatch?.[0] ?? value;
-  try {
-    const parsedUrl = new URL(candidate);
-    return parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
-function safeFilename(title: string): string {
-  return title
-    .replace(/[\\/:*?"<>|\r\n]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 120) || "视频";
-}
-
-function wrapText(value: string, size: number): string[] {
-  const chars = Array.from(value.trim());
-  if (chars.length <= size) {
-    return [value.trim()];
-  }
-  return [
-    chars.slice(0, size).join(""),
-    `${chars.slice(size, size * 2 - 1).join("")}${chars.length > size * 2 - 1 ? "..." : ""}`
-  ];
 }
 
 function isAbortError(err: unknown): boolean {

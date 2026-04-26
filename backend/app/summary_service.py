@@ -1,39 +1,28 @@
 from __future__ import annotations
 
-import json
 import re
-import threading
-import time
 import uuid
 from collections.abc import Iterator
-from typing import Any
 
 from pydantic import ValidationError
 
 from backend.app.deepseek_client import DeepSeekError, complete_json, deepseek_configured, stream_chat_completion
-from backend.app.env_config import get_config_value
-from backend.app.models import TranscriptTaskInfo, VideoInfo
 from backend.app.prompt_templates import build_mindmap_messages, build_qa_messages, build_summary_messages
 from backend.app.providers.base import MissingFfmpegError, VideoServiceError
+from backend.app.summary_events import dump_model as _dump_model
+from backend.app.summary_events import sse_event as _event
+from backend.app.summary_events import stage_event as _stage
+from backend.app.summary_markdown_parser import build_structured_summary_from_markdown
 from backend.app.summary_models import (
     MindMapNode,
-    QaMessage,
     QaQuestionRequest,
-    StructuredSummary,
-    SummaryChapter,
-    SummarySession,
-    SummaryStage,
     SummaryStreamRequest,
-    SummaryTranscript,
 )
-from backend.app.transcript_service import create_transcript_task, get_transcript_task, run_transcript_task, should_start_task
+from backend.app.summary_session_store import append_qa_messages, create_summary_session, get_summary_session
+from backend.app.summary_session_store import clear_summary_sessions_for_tests as _clear_sessions_for_tests
+from backend.app.summary_session_store import session_ttl_seconds as _session_ttl_seconds
+from backend.app.summary_transcript_resolver import load_or_create_transcript
 from backend.app.video_service import extract_video_info, validate_video_url
-
-
-DEFAULT_SESSION_TTL_SECONDS = 24 * 60 * 60
-
-_sessions: dict[str, SummarySession] = {}
-_sessions_lock = threading.Lock()
 
 
 def stream_summary_events(payload: SummaryStreamRequest) -> Iterator[str]:
@@ -63,7 +52,7 @@ def stream_summary_events(payload: SummaryStreamRequest) -> Iterator[str]:
     yield _event("video", _dump_model(video))
     yield _stage("parsing", "completed", "视频信息解析完成。")
 
-    transcript = _load_or_create_transcript(video, payload.url)
+    transcript = load_or_create_transcript(video, payload.url)
     for event in transcript.events:
         yield event
     if transcript.value is None:
@@ -156,66 +145,6 @@ def stream_qa_events(session_id: str, payload: QaQuestionRequest) -> Iterator[st
     yield _event("answer_done", {"messageId": message_id})
 
 
-def create_summary_session(video: VideoInfo, transcript: str, summary_markdown: str) -> str:
-    _prune_expired_sessions()
-    now = time.time()
-    session_id = f"summary_{uuid.uuid4().hex}"
-    session = SummarySession(
-        sessionId=session_id,
-        createdAt=now,
-        expiresAt=now + _session_ttl_seconds(),
-        videoTitle=video.title,
-        videoUrl=video.webpageUrl,
-        transcript=transcript,
-        summaryMarkdown=summary_markdown,
-    )
-    with _sessions_lock:
-        _sessions[session_id] = session
-    return session_id
-
-
-def get_summary_session(session_id: str) -> SummarySession | None:
-    _prune_expired_sessions()
-    with _sessions_lock:
-        session = _sessions.get(session_id)
-        if session is None:
-            return None
-        return session.model_copy(deep=True)
-
-
-def append_qa_messages(session_id: str, question: str, answer: str) -> None:
-    with _sessions_lock:
-        session = _sessions.get(session_id)
-        if session is None:
-            return
-        session.messages.append(QaMessage(role="user", content=question))
-        session.messages.append(QaMessage(role="assistant", content=answer))
-
-
-def build_structured_summary_from_markdown(markdown: str) -> StructuredSummary:
-    one_sentence_lines = _section_lines(markdown, "一句话总结")
-    key_points = _list_items(_section_lines(markdown, "核心观点"))
-    keyword_lines = _section_lines(markdown, "关键词")
-    action_lines = _section_lines(markdown, "行动建议")
-    caution_lines = _section_lines(markdown, "注意事项")
-    chapter_lines = _section_lines(markdown, "章节概览")
-
-    one_sentence = _first_text(one_sentence_lines) or _first_text(markdown.splitlines()) or "摘要生成完成。"
-    keywords = _keywords(keyword_lines)
-    actions = _list_items(action_lines)
-    cautions = _list_items(caution_lines)
-    chapters = _chapters(chapter_lines)
-
-    return StructuredSummary(
-        oneSentence=one_sentence,
-        keyPoints=key_points,
-        chapters=chapters,
-        keywords=keywords,
-        actions=actions,
-        cautions=cautions,
-    )
-
-
 def normalize_mindmap(root: MindMapNode) -> MindMapNode:
     counter = 0
 
@@ -235,155 +164,11 @@ def normalize_mindmap(root: MindMapNode) -> MindMapNode:
     return normalized.model_copy(update={"id": "root"})
 
 
-class _TranscriptResult:
-    def __init__(self, *, value: SummaryTranscript | None, events: list[str], error: str | None = None) -> None:
-        self.value = value
-        self.events = events
-        self.error = error
-
-
-def _load_or_create_transcript(video: VideoInfo, fallback_url: str) -> _TranscriptResult:
-    events: list[str] = [_stage("loading_transcript", "running", "正在获取公开字幕或文稿。")]
-    if video.subtitleStatus == "available" and video.subtitles:
-        subtitle = video.subtitles[0]
-        transcript = SummaryTranscript(
-            source="subtitle",
-            text="\n\n".join(item.text for item in video.subtitles if item.text.strip()).strip(),
-            language=subtitle.language,
-            cues=subtitle.cues,
-        )
-        events.append(_stage("loading_transcript", "completed", "已获取公开字幕。"))
-        return _TranscriptResult(value=transcript, events=events)
-
-    events.append(_stage("loading_transcript", "completed", "公开字幕不可用，准备自动转写。"))
-    events.append(_stage("transcribing", "running", "正在使用 StepAudio ASR 生成文稿。"))
-    task = create_transcript_task(video.webpageUrl or fallback_url, video.duration)
-    video.transcriptTask = task
-    if should_start_task(task):
-        run_transcript_task(task.taskId)
-    task = get_transcript_task(task.taskId) or task
-    if task.status != "completed" or not task.text:
-        message = task.message or "自动转写失败，无法获得可总结文稿。"
-        events.append(_stage("transcribing", "failed", message))
-        return _TranscriptResult(value=None, events=events, error=message)
-
-    events.append(_stage("transcribing", "completed", "文稿生成完成。"))
-    return _TranscriptResult(
-        value=SummaryTranscript(source="asr", text=task.text.strip(), language=None, cues=[]),
-        events=events,
-    )
-
-
 def _validate_summary_url(value: str) -> None:
     url_match = re.search(r"https?://\S+", value)
     validate_video_url(url_match.group(0) if url_match else value)
 
 
-def _stage(stage: SummaryStage, status: str, message: str) -> str:
-    return _event("stage", {"stage": stage, "status": status, "message": message})
-
-
-def _event(event: str, data: dict[str, Any]) -> str:
-    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
-
-
-def _dump_model(model: Any) -> dict[str, Any]:
-    return model.model_dump(mode="json")
-
-
-def _section_lines(markdown: str, title: str) -> list[str]:
-    lines = markdown.splitlines()
-    start_index: int | None = None
-    for index, line in enumerate(lines):
-        if re.match(rf"^#+\s*{re.escape(title)}\s*$", line.strip()):
-            start_index = index + 1
-            break
-    if start_index is None:
-        return []
-
-    collected: list[str] = []
-    for line in lines[start_index:]:
-        if re.match(r"^#{1,3}\s+\S", line.strip()):
-            break
-        collected.append(line)
-    return collected
-
-
-def _first_text(lines: list[str]) -> str:
-    for line in lines:
-        normalized = _clean_list_marker(line)
-        if normalized:
-            return normalized
-    return ""
-
-
-def _list_items(lines: list[str]) -> list[str]:
-    items = [_clean_list_marker(line) for line in lines]
-    return [item for item in items if item]
-
-
-def _keywords(lines: list[str]) -> list[str]:
-    items: list[str] = []
-    for line in lines:
-        cleaned = _clean_list_marker(line)
-        if not cleaned:
-            continue
-        parts = re.split(r"[、,，;；]", cleaned)
-        items.extend(part.strip() for part in parts if part.strip())
-    return items[:20]
-
-
-def _chapters(lines: list[str]) -> list[SummaryChapter]:
-    chapters: list[SummaryChapter] = []
-    current: SummaryChapter | None = None
-    for line in lines:
-        cleaned = _clean_list_marker(line)
-        if not cleaned:
-            continue
-        if re.match(r"^(\d+\.|第.+章|章节|###)", cleaned):
-            if current is not None:
-                chapters.append(current)
-            current = SummaryChapter(title=cleaned, bullets=[])
-            continue
-        if current is None:
-            current = SummaryChapter(title=cleaned, bullets=[])
-        else:
-            current.bullets.append(cleaned)
-    if current is not None:
-        chapters.append(current)
-    return chapters[:12]
-
-
-def _clean_list_marker(line: str) -> str:
-    normalized = line.strip()
-    normalized = re.sub(r"^[-*+]\s+", "", normalized)
-    normalized = re.sub(r"^\d+[.)、]\s*", "", normalized)
-    normalized = normalized.strip()
-    return normalized
-
-
 def _safe_node_id(value: str) -> str:
     safe = re.sub(r"[^a-zA-Z0-9_-]+", "-", value.strip())[:48].strip("-")
     return safe
-
-
-def _session_ttl_seconds() -> int:
-    raw_value = get_config_value("AI_SUMMARY_SESSION_TTL_SECONDS", str(DEFAULT_SESSION_TTL_SECONDS))
-    try:
-        value = int(raw_value)
-    except ValueError:
-        return DEFAULT_SESSION_TTL_SECONDS
-    return value if value > 0 else DEFAULT_SESSION_TTL_SECONDS
-
-
-def _prune_expired_sessions() -> None:
-    now = time.time()
-    with _sessions_lock:
-        expired_ids = [session_id for session_id, session in _sessions.items() if session.expiresAt <= now]
-        for session_id in expired_ids:
-            del _sessions[session_id]
-
-
-def _clear_sessions_for_tests() -> None:
-    with _sessions_lock:
-        _sessions.clear()
