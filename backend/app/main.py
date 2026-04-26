@@ -3,12 +3,26 @@ from __future__ import annotations
 import asyncio
 import shutil
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
 
-from backend.app.models import HealthInfo, Quality, VideoInfo, VideoParseRequest
+from backend.app.models import (
+    HealthInfo,
+    Quality,
+    TranscriptCreateRequest,
+    TranscriptTaskInfo,
+    VideoInfo,
+    VideoParseRequest,
+)
+from backend.app.stepaudio_client import stepaudio_configured
+from backend.app.transcript_service import (
+    create_transcript_task,
+    get_transcript_task,
+    run_transcript_task,
+    should_start_task,
+)
 from backend.app.video_service import (
     MissingFfmpegError,
     VideoServiceError,
@@ -34,13 +48,19 @@ app.add_middleware(
 
 @app.get("/api/health", response_model=HealthInfo)
 async def health() -> HealthInfo:
-    return HealthInfo(status="ok", ffmpegAvailable=ffmpeg_available())
+    return HealthInfo(
+        status="ok",
+        ffmpegAvailable=ffmpeg_available(),
+        sttAvailable=stepaudio_configured(),
+    )
 
 
 @app.post("/api/videos/parse", response_model=VideoInfo)
-async def parse_video(payload: VideoParseRequest) -> VideoInfo:
+async def parse_video(payload: VideoParseRequest, background_tasks: BackgroundTasks) -> VideoInfo:
     try:
-        return await asyncio.to_thread(extract_video_info, payload.url)
+        video = await asyncio.to_thread(extract_video_info, payload.url)
+        _attach_auto_transcript_task(video, payload.url, background_tasks)
+        return video
     except MissingFfmpegError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
     except VideoServiceError as exc:
@@ -65,3 +85,36 @@ async def download(
         filename=result.filename,
         background=BackgroundTask(shutil.rmtree, result.directory, ignore_errors=True),
     )
+
+
+@app.post("/api/transcripts", response_model=TranscriptTaskInfo)
+async def create_transcript(
+    payload: TranscriptCreateRequest,
+    background_tasks: BackgroundTasks,
+) -> TranscriptTaskInfo:
+    task = create_transcript_task(payload.url)
+    if should_start_task(task):
+        background_tasks.add_task(run_transcript_task, task.taskId)
+    return task
+
+
+@app.get("/api/transcripts/{task_id}", response_model=TranscriptTaskInfo)
+async def get_transcript(task_id: str) -> TranscriptTaskInfo:
+    task = get_transcript_task(task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="转写任务不存在或已过期。")
+    return task
+
+
+def _attach_auto_transcript_task(
+    video: VideoInfo,
+    fallback_url: str,
+    background_tasks: BackgroundTasks,
+) -> None:
+    if video.subtitleStatus == "available" and video.subtitles:
+        return
+
+    task = create_transcript_task(video.webpageUrl or fallback_url, video.duration)
+    video.transcriptTask = task
+    if should_start_task(task):
+        background_tasks.add_task(run_transcript_task, task.taskId)

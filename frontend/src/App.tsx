@@ -3,6 +3,7 @@ import {
   Bot,
   Check,
   CheckCircle2,
+  Copy,
   Download,
   FileText,
   Film,
@@ -19,8 +20,8 @@ import {
 import type { FormEvent, ReactElement } from "react";
 import { useEffect, useMemo, useState } from "react";
 
-import { DownloadCanceledError, downloadVideoFile, parseVideo } from "./api";
-import type { Quality, QualityOption, VideoInfo } from "./types";
+import { DownloadCanceledError, downloadVideoFile, getTranscriptTask, parseVideo } from "./api";
+import type { Quality, QualityOption, TranscriptTaskInfo, VideoInfo } from "./types";
 
 const qualityIcon: Record<Quality, ReactElement> = {
   source: <Film aria-hidden="true" size={18} />,
@@ -87,6 +88,7 @@ function App() {
   const [isParsing, setIsParsing] = useState(false);
   const [activeQuality, setActiveQuality] = useState<Quality | null>(null);
   const [downloadState, setDownloadState] = useState<DownloadState | null>(null);
+  const [transcriptTask, setTranscriptTask] = useState<TranscriptTaskInfo | null>(null);
   const [, setDownloadTick] = useState(0);
 
   const availableCount = useMemo(
@@ -104,6 +106,53 @@ function App() {
     return () => window.clearInterval(timer);
   }, [downloadState?.phase]);
 
+  useEffect(() => {
+    if (!transcriptTask || transcriptTask.status === "completed" || transcriptTask.status === "failed") {
+      return undefined;
+    }
+
+    let stopped = false;
+
+    async function pollTranscriptTask() {
+      if (!transcriptTask) {
+        return;
+      }
+      try {
+        const updatedTask = await getTranscriptTask(transcriptTask.taskId);
+        if (stopped) {
+          return;
+        }
+        setTranscriptTask(updatedTask);
+        setVideo((current) => current?.transcriptTask?.taskId === updatedTask.taskId
+          ? { ...current, transcriptTask: updatedTask }
+          : current
+        );
+      } catch (err) {
+        if (stopped) {
+          return;
+        }
+        const failedTask: TranscriptTaskInfo = {
+          ...transcriptTask,
+          status: "failed",
+          message: err instanceof Error ? err.message : "查询转写任务失败。",
+          text: null
+        };
+        setTranscriptTask(failedTask);
+        setVideo((current) => current?.transcriptTask?.taskId === failedTask.taskId
+          ? { ...current, transcriptTask: failedTask }
+          : current
+        );
+      }
+    }
+
+    const timer = window.setInterval(pollTranscriptTask, 2000);
+    void pollTranscriptTask();
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+    };
+  }, [transcriptTask?.taskId, transcriptTask?.status]);
+
   async function handleParse(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const normalizedUrl = url.trim();
@@ -119,15 +168,26 @@ function App() {
     setError("");
     setNotice("");
     setVideo(null);
+    setTranscriptTask(null);
     setIsParsing(true);
     try {
       const parsedVideo = await parseVideo(normalizedUrl);
       setVideo(parsedVideo);
-      setNotice(`解析完成，已找到 ${parsedVideo.options.filter((option) => option.available).length} 个可下载档位。`);
+      setTranscriptTask(parsedVideo.transcriptTask);
+      setNotice(buildParseNotice(parsedVideo));
     } catch (err) {
       setError(err instanceof Error ? err.message : "解析失败，请检查链接后重试。");
     } finally {
       setIsParsing(false);
+    }
+  }
+
+  async function handleCopyTranscript(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setNotice("文稿已复制到剪贴板。");
+    } catch {
+      setError("当前浏览器不支持自动复制，请手动选中文稿复制。");
     }
   }
 
@@ -284,6 +344,11 @@ function App() {
                     <FileText aria-hidden="true" size={15} />
                     <span>{formatSubtitleStatus(video)}</span>
                   </div>
+                  <TranscriptPanel
+                    video={video}
+                    task={transcriptTask}
+                    onCopy={handleCopyTranscript}
+                  />
                   <div className="quality-grid" aria-label="下载清晰度">
                     {video.options.map((option) => (
                       <button
@@ -450,6 +515,56 @@ function DownloadProgressPanel({ state }: { state: DownloadState }) {
   );
 }
 
+function TranscriptPanel({
+  video,
+  task,
+  onCopy
+}: {
+  video: VideoInfo;
+  task: TranscriptTaskInfo | null;
+  onCopy: (text: string) => void;
+}) {
+  const subtitleText = buildSubtitleTranscript(video);
+  const hasSubtitleTranscript = subtitleText.length > 0;
+  const transcriptText = hasSubtitleTranscript ? subtitleText : task?.text?.trim() ?? "";
+  const sourceLabel = hasSubtitleTranscript ? "公开字幕" : "StepAudio ASR";
+  const status = hasSubtitleTranscript ? "completed" : task?.status ?? "failed";
+  const statusText = hasSubtitleTranscript ? "字幕解析完成。" : getTranscriptStatusText(task);
+
+  if (!hasSubtitleTranscript && !task) {
+    return null;
+  }
+
+  return (
+    <section className={`transcript-panel transcript-panel-${status}`} aria-label="视频文稿">
+      <div className="transcript-head">
+        <div>
+          <strong>视频文稿</strong>
+          <span>{sourceLabel} · {statusText}</span>
+        </div>
+        {transcriptText ? (
+          <button type="button" className="transcript-copy" onClick={() => onCopy(transcriptText)}>
+            <Copy aria-hidden="true" size={15} />
+            复制
+          </button>
+        ) : null}
+      </div>
+      {transcriptText ? (
+        <pre className="transcript-text">{transcriptText}</pre>
+      ) : (
+        <div className="transcript-placeholder">
+          {status === "failed" ? (
+            <AlertCircle aria-hidden="true" size={17} />
+          ) : (
+            <Loader2 aria-hidden="true" className="spin" size={17} />
+          )}
+          <span>{task?.message || "正在自动生成文稿，请保持页面打开。"}</span>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function getDownloadStatusText(state: DownloadState, elapsedSeconds: number) {
   if (state.phase === "preparing") {
     return `服务器正在解析并准备文件，已等待 ${elapsedSeconds}s，长视频或高画质会更久。`;
@@ -461,6 +576,52 @@ function getDownloadStatusText(state: DownloadState, elapsedSeconds: number) {
     return "正在交给浏览器保存文件。";
   }
   return "下载完成。";
+}
+
+function getTranscriptStatusText(task: TranscriptTaskInfo | null): string {
+  if (!task) {
+    return "未启动自动转写。";
+  }
+  if (task.status === "queued") {
+    return task.message || "等待开始自动转写。";
+  }
+  if (task.status === "extracting_audio") {
+    return task.message || "正在提取视频音频。";
+  }
+  if (task.status === "transcribing") {
+    return task.message || "正在调用 StepAudio 2.5 ASR 生成文稿。";
+  }
+  if (task.status === "completed") {
+    return task.message || "文稿生成完成。";
+  }
+  return task.message || "自动转写失败。";
+}
+
+function buildSubtitleTranscript(video: VideoInfo): string {
+  if (video.subtitleStatus !== "available" || video.subtitles.length === 0) {
+    return "";
+  }
+  return video.subtitles
+    .map((subtitle) => {
+      const label = subtitle.languageLabel || subtitle.language;
+      return `${label}\n${subtitle.text}`;
+    })
+    .join("\n\n")
+    .trim();
+}
+
+function buildParseNotice(video: VideoInfo): string {
+  const count = video.options.filter((option) => option.available).length;
+  if (video.transcriptTask) {
+    if (video.transcriptTask.status === "failed") {
+      return `解析完成，已找到 ${count} 个可下载档位；自动文稿暂不可用。`;
+    }
+    return `解析完成，已找到 ${count} 个可下载档位；正在自动生成文稿。`;
+  }
+  if (video.subtitleStatus === "available" && video.subtitles.length > 0) {
+    return `解析完成，已找到 ${count} 个可下载档位，并已获取公开字幕。`;
+  }
+  return `解析完成，已找到 ${count} 个可下载档位。`;
 }
 
 function renderPlanValue(value: string): ReactElement | string {

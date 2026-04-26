@@ -1,4 +1,4 @@
-import type { Quality, VideoInfo } from "./types";
+import type { Quality, TranscriptTaskInfo, VideoInfo } from "./types";
 
 interface DownloadProgress {
   receivedBytes: number;
@@ -46,6 +46,16 @@ export async function parseVideo(url: string): Promise<VideoInfo> {
 export function buildDownloadUrl(url: string, quality: Quality): string {
   const params = new URLSearchParams({ url, quality });
   return `/api/videos/download?${params.toString()}`;
+}
+
+export async function getTranscriptTask(taskId: string): Promise<TranscriptTaskInfo> {
+  const response = await fetch(`/api/transcripts/${encodeURIComponent(taskId)}`);
+
+  if (!response.ok) {
+    throw new Error(await readApiError(response));
+  }
+
+  return response.json() as Promise<TranscriptTaskInfo>;
 }
 
 export async function downloadVideoFile(

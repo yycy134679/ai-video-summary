@@ -531,6 +531,98 @@ a {
   font-size: 12px;
 }
 
+.transcript-panel {
+  margin: 0 0 14px;
+  padding: 13px 14px;
+  background: #fbfcff;
+  border: 1px solid rgba(195, 198, 214, 0.72);
+  border-radius: 10px;
+}
+
+.transcript-panel-completed {
+  background: #f7fbff;
+  border-color: rgba(0, 82, 204, 0.16);
+}
+
+.transcript-panel-failed {
+  background: #fff8f7;
+  border-color: rgba(205, 44, 44, 0.18);
+}
+
+.transcript-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.transcript-head strong,
+.transcript-head span {
+  display: block;
+}
+
+.transcript-head strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.transcript-head span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.transcript-copy {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 6px 9px;
+  color: var(--primary);
+  background: #ffffff;
+  border: 1px solid rgba(0, 82, 204, 0.18);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.transcript-copy:hover {
+  border-color: rgba(0, 82, 204, 0.42);
+}
+
+.transcript-text {
+  max-height: 190px;
+  margin: 11px 0 0;
+  padding: 10px 11px;
+  overflow: auto;
+  color: #233044;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #ffffff;
+  border: 1px solid rgba(195, 198, 214, 0.6);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.transcript-placeholder {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 11px;
+  color: #4f5b6d;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.transcript-placeholder svg {
+  flex: 0 0 auto;
+}
+
 .download-progress {
   margin-top: 14px;
   padding: 13px 14px;

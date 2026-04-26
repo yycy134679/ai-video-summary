@@ -42,11 +42,11 @@
 
 #### P0.1 后端配置与健康检查
 
-后端通过环境变量读取 StepFun API Key，建议命名为 `STEP_API_KEY`。健康检查可扩展返回 STT 配置状态，但不得返回密钥值。
+后端通过项目根目录 `.env` 读取 StepFun API Key，配置项命名为 `STEP_API_KEY`。健康检查可扩展返回 STT 配置状态，但不得返回密钥值。
 
 验收标准：
 
-- [ ] 未配置 `STEP_API_KEY` 时，转写接口返回清晰中文错误。
+- [ ] `.env` 未配置 `STEP_API_KEY` 时，转写接口返回清晰中文错误。
 - [ ] 日志、异常和接口响应中不出现 API Key。
 - [ ] `GET /api/health` 至少能让前端判断 STT 是否可用或不可用。
 
