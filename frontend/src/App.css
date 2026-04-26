@@ -432,6 +432,38 @@ a {
   font-weight: 750;
 }
 
+.subtitle-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  margin: 0 0 14px;
+  padding: 7px 10px;
+  color: #4f5b6d;
+  background: #f8fbff;
+  border: 1px solid rgba(195, 198, 214, 0.72);
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.subtitle-status svg {
+  flex: 0 0 auto;
+}
+
+.subtitle-status span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subtitle-status-available {
+  color: #0040a2;
+  background: #e8edff;
+  border-color: rgba(0, 82, 204, 0.16);
+}
+
 .quality-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

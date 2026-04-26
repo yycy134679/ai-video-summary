@@ -1,4 +1,5 @@
 import pytest
+import httpx
 
 from backend.app.models import VideoInfo
 from backend.app.providers import bilibili_provider, douyin_provider
@@ -262,6 +263,8 @@ def test_bilibili_build_media_from_page_maps_playinfo_and_initial_state():
     assert media.uploader == "UP 主"
     assert media.duration == 118
     assert media.thumbnail == "https://i0.hdslb.com/cover.jpg"
+    assert media.subtitles == []
+    assert media.subtitle_status == "unavailable"
     assert options["source"].available is True
     assert options["1080p"].available is True
     assert options["720p"].available is True
@@ -296,6 +299,140 @@ def test_bilibili_build_media_from_page_ignores_non_assignment_playinfo_referenc
         )
 
 
+def test_bilibili_fetch_subtitle_result_maps_public_subtitles():
+    initial_state = {
+        "videoData": {
+            "bvid": "BV1TaqYBcEJc",
+            "cid": 123456,
+        }
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/x/player/v2":
+            return httpx.Response(
+                200,
+                json={
+                    "code": 0,
+                    "data": {
+                        "need_login_subtitle": False,
+                        "subtitle": {
+                            "subtitles": [
+                                {
+                                    "lan": "zh-CN",
+                                    "lan_doc": "中文",
+                                    "subtitle_url": "//subtitle.example.com/zh.json",
+                                }
+                            ]
+                        },
+                    },
+                },
+            )
+        if request.url.host == "subtitle.example.com":
+            assert str(request.url) == "https://subtitle.example.com/zh.json"
+            return httpx.Response(
+                200,
+                json={
+                    "body": [
+                        {"from": 0.0, "to": 1.5, "content": "第一句"},
+                        {"from": 1.5, "to": 3.0, "content": "第二句"},
+                    ]
+                },
+            )
+        return httpx.Response(404)
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        result = bilibili_provider._fetch_subtitle_result(
+            client,
+            initial_state,
+            "https://www.bilibili.com/video/BV1TaqYBcEJc/",
+        )
+
+    assert result.status == "available"
+    assert result.message is None
+    assert len(result.subtitles) == 1
+    subtitle = result.subtitles[0]
+    assert subtitle.language == "zh-CN"
+    assert subtitle.languageLabel == "中文"
+    assert subtitle.text == "第一句\n第二句"
+    assert subtitle.cues[0].start == 0
+    assert subtitle.cues[0].end == 1.5
+    assert subtitle.cues[0].text == "第一句"
+
+
+def test_bilibili_fetch_subtitle_result_handles_login_required_empty_list():
+    initial_state = {
+        "videoData": {
+            "bvid": "BV1TaqYBcEJc",
+            "cid": 123456,
+        }
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "code": 0,
+                "data": {
+                    "need_login_subtitle": True,
+                    "subtitle": {"subtitles": []},
+                },
+            },
+        )
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        result = bilibili_provider._fetch_subtitle_result(
+            client,
+            initial_state,
+            "https://www.bilibili.com/video/BV1TaqYBcEJc/",
+        )
+
+    assert result.status == "unavailable"
+    assert result.subtitles == []
+    assert result.message == "当前视频字幕需要登录后访问。"
+
+
+def test_bilibili_fetch_subtitle_result_handles_invalid_subtitle_file():
+    initial_state = {
+        "videoData": {
+            "bvid": "BV1TaqYBcEJc",
+            "cid": 123456,
+        }
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/x/player/v2":
+            return httpx.Response(
+                200,
+                json={
+                    "code": 0,
+                    "data": {
+                        "need_login_subtitle": False,
+                        "subtitle": {
+                            "subtitles": [
+                                {
+                                    "lan": "zh-CN",
+                                    "lan_doc": "中文",
+                                    "subtitle_url": "https://subtitle.example.com/broken.json",
+                                }
+                            ]
+                        },
+                    },
+                },
+            )
+        return httpx.Response(200, text="not json")
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        result = bilibili_provider._fetch_subtitle_result(
+            client,
+            initial_state,
+            "https://www.bilibili.com/video/BV1TaqYBcEJc/",
+        )
+
+    assert result.status == "unavailable"
+    assert result.subtitles == []
+    assert result.message == "当前视频字幕文件不可访问或格式异常。"
+
+
 def test_bilibili_extract_video_info_uses_bilibili_provider(monkeypatch):
     def fake_extract_video_info(value: str) -> VideoInfo:
         assert "bilibili.com" in value
@@ -312,3 +449,5 @@ def test_bilibili_extract_video_info_uses_bilibili_provider(monkeypatch):
     result = extract_video_info("https://www.bilibili.com/video/BV1TaqYBcEJc/")
 
     assert result.title == "B 站视频"
+    assert result.subtitles == []
+    assert result.subtitleStatus == "unavailable"

@@ -280,6 +280,10 @@ function App() {
                     <span>{formatDuration(video.duration)}</span>
                     <span>{availableCount} 个可用档位</span>
                   </div>
+                  <div className={`subtitle-status subtitle-status-${video.subtitleStatus}`}>
+                    <FileText aria-hidden="true" size={15} />
+                    <span>{formatSubtitleStatus(video)}</span>
+                  </div>
                   <div className="quality-grid" aria-label="下载清晰度">
                     {video.options.map((option) => (
                       <button
@@ -481,6 +485,13 @@ function formatDuration(duration: number | null): string {
     return `${hours}:${pad(minutes)}:${pad(seconds)}`;
   }
   return `${minutes}:${pad(seconds)}`;
+}
+
+function formatSubtitleStatus(video: VideoInfo): string {
+  if (video.subtitleStatus === "available" && video.subtitles.length > 0) {
+    return `已解析字幕：${video.subtitles.map((item) => item.languageLabel || item.language).join("、")}`;
+  }
+  return `字幕不可用：${video.subtitleMessage || "当前视频没有可匿名访问字幕。"}`;
 }
 
 function formatFileSize(bytes: number | null): string {

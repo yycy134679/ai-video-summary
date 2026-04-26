@@ -6,14 +6,14 @@ import re
 import shutil
 import subprocess
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
 import httpx
 
-from backend.app.models import Quality, QualityOption, VideoInfo
+from backend.app.models import Quality, QualityOption, SubtitleCue, SubtitleInfo, SubtitleStatus, VideoInfo
 from backend.app.providers.base import DownloadResult, MissingFfmpegError, VideoServiceError
 
 
@@ -43,6 +43,16 @@ class BilibiliMedia:
     webpage_url: str
     videos: list[BilibiliStream]
     audios: list[BilibiliStream]
+    subtitles: list[SubtitleInfo]
+    subtitle_status: SubtitleStatus
+    subtitle_message: str | None
+
+
+@dataclass(frozen=True)
+class BilibiliSubtitleResult:
+    subtitles: list[SubtitleInfo]
+    status: SubtitleStatus
+    message: str | None
 
 
 BILIBILI_HOST_SUFFIXES = ("bilibili.com", "b23.tv")
@@ -77,6 +87,9 @@ def extract_video_info(value: str) -> VideoInfo:
         thumbnail=media.thumbnail,
         webpageUrl=media.webpage_url,
         options=build_quality_options(media),
+        subtitles=media.subtitles,
+        subtitleStatus=media.subtitle_status,
+        subtitleMessage=media.subtitle_message,
     )
 
 
@@ -157,6 +170,9 @@ def build_media_from_page(
         webpage_url=webpage_url,
         videos=videos,
         audios=audios,
+        subtitles=[],
+        subtitle_status="unavailable",
+        subtitle_message="当前视频没有可匿名访问字幕。",
     )
 
 
@@ -230,7 +246,14 @@ def _resolve_media(value: str) -> BilibiliMedia:
                 playinfo = _fetch_playinfo_from_api(client, initial_state, resolved_url)
             else:
                 playinfo = _enrich_playinfo_with_progressive(client, playinfo, initial_state, resolved_url)
-            return build_media_from_page(html, resolved_url, playinfo, initial_state)
+            media = build_media_from_page(html, resolved_url, playinfo, initial_state)
+            subtitle_result = _fetch_subtitle_result(client, initial_state, resolved_url)
+            return replace(
+                media,
+                subtitles=subtitle_result.subtitles,
+                subtitle_status=subtitle_result.status,
+                subtitle_message=subtitle_result.message,
+            )
     except httpx.HTTPStatusError as exc:
         raise BilibiliProviderError(_friendly_http_error(exc)) from exc
     except httpx.HTTPError as exc:
@@ -257,9 +280,7 @@ def _fetch_playinfo_from_api(
     initial_state: dict[str, Any],
     webpage_url: str,
 ) -> dict[str, Any]:
-    video_data = initial_state.get("videoData") if isinstance(initial_state.get("videoData"), dict) else {}
-    bvid = str(video_data.get("bvid") or initial_state.get("bvid") or _extract_video_id(video_data, webpage_url))
-    cid = _to_int(video_data.get("cid") or initial_state.get("cid") or _first_page_cid(video_data))
+    bvid, cid = _extract_bvid_cid(initial_state, webpage_url)
 
     if not bvid or not cid:
         raise BilibiliProviderError("B 站解析失败：页面中缺少获取播放地址所需的 bvid 或 cid。")
@@ -296,9 +317,7 @@ def _enrich_playinfo_with_progressive(
     initial_state: dict[str, Any],
     webpage_url: str,
 ) -> dict[str, Any]:
-    video_data = initial_state.get("videoData") if isinstance(initial_state.get("videoData"), dict) else {}
-    bvid = str(video_data.get("bvid") or initial_state.get("bvid") or _extract_video_id(video_data, webpage_url))
-    cid = _to_int(video_data.get("cid") or initial_state.get("cid") or _first_page_cid(video_data))
+    bvid, cid = _extract_bvid_cid(initial_state, webpage_url)
     data = playinfo.get("data") if isinstance(playinfo.get("data"), dict) else {}
     if not bvid or not cid or data.get("durl"):
         return playinfo
@@ -320,6 +339,121 @@ def _enrich_playinfo_with_progressive(
 
     _merge_progressive_data(data, progressive_data)
     return playinfo
+
+
+def _fetch_subtitle_result(
+    client: httpx.Client,
+    initial_state: dict[str, Any],
+    webpage_url: str,
+) -> BilibiliSubtitleResult:
+    bvid, cid = _extract_bvid_cid(initial_state, webpage_url)
+    if not bvid or not cid:
+        return BilibiliSubtitleResult([], "unavailable", "页面中缺少获取字幕所需的 bvid 或 cid。")
+
+    try:
+        player_data = _fetch_player_v2_data(client, webpage_url, bvid, cid)
+        subtitle_data = player_data.get("subtitle") if isinstance(player_data.get("subtitle"), dict) else {}
+        subtitle_items = _as_list(subtitle_data.get("subtitles"))
+        if not subtitle_items:
+            if player_data.get("need_login_subtitle") is True:
+                return BilibiliSubtitleResult([], "unavailable", "当前视频字幕需要登录后访问。")
+            return BilibiliSubtitleResult([], "unavailable", "当前视频没有可匿名访问字幕。")
+
+        subtitles: list[SubtitleInfo] = []
+        for item in subtitle_items:
+            if not isinstance(item, dict):
+                continue
+            subtitle_url = _normalize_url(item.get("subtitle_url"))
+            language = str(item.get("lan") or "").strip()
+            language_label = str(item.get("lan_doc") or language or "未知字幕").strip()
+            if not subtitle_url or not language:
+                continue
+            try:
+                cues = _fetch_subtitle_cues(client, webpage_url, subtitle_url)
+            except (BilibiliProviderError, httpx.HTTPError):
+                continue
+            if not cues:
+                continue
+            subtitles.append(
+                SubtitleInfo(
+                    language=language,
+                    languageLabel=language_label,
+                    text="\n".join(cue.text for cue in cues),
+                    cues=cues,
+                )
+            )
+    except (BilibiliProviderError, httpx.HTTPError):
+        return BilibiliSubtitleResult([], "unavailable", "B 站字幕接口暂时不可访问。")
+
+    if not subtitles:
+        return BilibiliSubtitleResult([], "unavailable", "当前视频字幕文件不可访问或格式异常。")
+    return BilibiliSubtitleResult(subtitles, "available", None)
+
+
+def _fetch_player_v2_data(
+    client: httpx.Client,
+    webpage_url: str,
+    bvid: str,
+    cid: int,
+) -> dict[str, Any]:
+    response = client.get(
+        "https://api.bilibili.com/x/player/v2",
+        params={"bvid": bvid, "cid": cid},
+        headers={
+            **DEFAULT_HEADERS,
+            "Accept": "application/json,*/*",
+            "Referer": webpage_url,
+        },
+    )
+    response.raise_for_status()
+
+    try:
+        payload = response.json()
+    except ValueError as exc:
+        raise BilibiliProviderError("B 站字幕接口返回的不是有效 JSON。") from exc
+
+    if payload.get("code") != 0:
+        message = str(payload.get("message") or "未知错误")
+        raise BilibiliProviderError(f"B 站字幕接口返回错误：{message}。")
+
+    data = payload.get("data")
+    if not isinstance(data, dict):
+        raise BilibiliProviderError("B 站字幕接口缺少有效数据。")
+    return data
+
+
+def _fetch_subtitle_cues(
+    client: httpx.Client,
+    webpage_url: str,
+    subtitle_url: str,
+) -> list[SubtitleCue]:
+    response = client.get(
+        subtitle_url,
+        headers={
+            **DEFAULT_HEADERS,
+            "Accept": "application/json,*/*",
+            "Referer": webpage_url,
+        },
+    )
+    response.raise_for_status()
+
+    try:
+        payload = response.json()
+    except ValueError as exc:
+        raise BilibiliProviderError("B 站字幕文件不是有效 JSON。") from exc
+
+    body = _as_list(payload.get("body")) if isinstance(payload, dict) else []
+    cues: list[SubtitleCue] = []
+    for item in body:
+        if not isinstance(item, dict):
+            continue
+        start = _to_float(item.get("from"))
+        end = _to_float(item.get("to"))
+        text = str(item.get("content") or "").strip()
+        if start is None or end is None or not text:
+            continue
+        cues.append(SubtitleCue(start=start, end=max(start, end), text=text))
+    return cues
 
 
 def _fetch_playurl_data(
@@ -614,6 +748,13 @@ def _extract_video_id(video_data: dict[str, Any], webpage_url: str) -> str:
     return "bilibili-video"
 
 
+def _extract_bvid_cid(initial_state: dict[str, Any], webpage_url: str) -> tuple[str, int | None]:
+    video_data = initial_state.get("videoData") if isinstance(initial_state.get("videoData"), dict) else {}
+    bvid = str(video_data.get("bvid") or initial_state.get("bvid") or _extract_video_id(video_data, webpage_url))
+    cid = _to_int(video_data.get("cid") or initial_state.get("cid") or _first_page_cid(video_data))
+    return bvid, cid
+
+
 def _first_page_cid(video_data: dict[str, Any]) -> int | None:
     pages = video_data.get("pages")
     if not isinstance(pages, list) or not pages or not isinstance(pages[0], dict):
@@ -663,6 +804,15 @@ def _to_int(value: Any) -> int | None:
         if value is None:
             return None
         return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _to_float(value: Any) -> float | None:
+    try:
+        if value is None:
+            return None
+        return float(value)
     except (TypeError, ValueError):
         return None
 
