@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import math
 import shutil
+import subprocess
 import threading
 import time
 import uuid
@@ -15,7 +17,7 @@ from backend.app.video_service import download_video
 
 
 DEFAULT_MAX_DURATION_SECONDS = 30 * 60
-DEFAULT_MAX_AUDIO_FILE_BYTES = 64 * 1024 * 1024
+DEFAULT_MAX_STEP_AUDIO_REQUEST_BYTES = 39 * 1024 * 1024
 DEFAULT_TASK_TTL_SECONDS = 24 * 60 * 60
 
 
@@ -89,10 +91,13 @@ def run_transcript_task(task_id: str) -> None:
 
         _update_task(task_id, status="extracting_audio", message="正在提取视频音频。")
         result = download_video(str(row["url"]), "audio")
-        _validate_audio_file(result.path)
+        audio_size = _validate_audio_file(result.path)
 
-        _update_task(task_id, status="transcribing", message="正在调用 StepAudio 2.5 ASR 生成文稿。")
-        text = transcribe_audio_file(result.path)
+        if audio_size > _max_stepaudio_request_bytes():
+            _update_task(task_id, status="transcribing", message="音频较大，正在分段调用 StepAudio 2.5 ASR 生成文稿。")
+        else:
+            _update_task(task_id, status="transcribing", message="正在调用 StepAudio 2.5 ASR 生成文稿。")
+        text = _transcribe_audio_with_segments(result.path)
         _update_task(task_id, status="completed", message="文稿生成完成。", text=text)
     except MissingFfmpegError as exc:
         _update_task(task_id, status="failed", message=str(exc))
@@ -106,17 +111,131 @@ def run_transcript_task(task_id: str) -> None:
             shutil.rmtree(result.directory, ignore_errors=True)
 
 
-def _validate_audio_file(path: Path) -> None:
+def _validate_audio_file(path: Path) -> int:
     try:
         size = path.stat().st_size
     except OSError as exc:
         raise VideoServiceError(f"音频抽取失败：无法读取音频文件大小。{exc}") from exc
 
-    max_size = _max_audio_file_bytes()
     if size <= 0:
         raise VideoServiceError("音频抽取失败：生成的音频文件为空。")
-    if size > max_size:
-        raise VideoServiceError(f"音频文件超过自动转写上限（{max_size // 1024 // 1024} MB），已跳过 STT。")
+    return size
+
+
+def _transcribe_audio_with_segments(path: Path) -> str:
+    size = _validate_audio_file(path)
+    max_request_bytes = _max_stepaudio_request_bytes()
+    if size <= max_request_bytes:
+        return transcribe_audio_file(path)
+
+    chunks = _split_audio_file(path, max_request_bytes)
+    texts = [transcribe_audio_file(chunk).strip() for chunk in chunks]
+    return "\n\n".join(text for text in texts if text).strip()
+
+
+def _split_audio_file(path: Path, max_request_bytes: int) -> list[Path]:
+    duration = _probe_audio_duration_seconds(path)
+    size = path.stat().st_size
+    segment_time = _initial_segment_time_seconds(size, duration, max_request_bytes)
+
+    for _ in range(8):
+        output_dir = path.parent / f"asr-segments-{uuid.uuid4().hex}"
+        output_dir.mkdir(parents=True, exist_ok=False)
+        output_pattern = output_dir / "segment-%03d.mp3"
+        _run_ffmpeg(
+            [
+                "ffmpeg",
+                "-y",
+                "-i",
+                str(path),
+                "-map",
+                "0:a:0",
+                "-vn",
+                "-f",
+                "segment",
+                "-segment_time",
+                str(segment_time),
+                "-reset_timestamps",
+                "1",
+                "-codec:a",
+                "libmp3lame",
+                "-b:a",
+                "128k",
+                str(output_pattern),
+            ],
+            "音频分段失败",
+        )
+        chunks = sorted(output_dir.glob("segment-*.mp3"))
+        if chunks and all(0 < chunk.stat().st_size <= max_request_bytes for chunk in chunks):
+            return chunks
+
+        shutil.rmtree(output_dir, ignore_errors=True)
+        segment_time = max(10, segment_time // 2)
+
+    raise VideoServiceError("音频分段后仍超过 StepAudio 单次识别上限，请降低音频码率或缩短视频后重试。")
+
+
+def _probe_audio_duration_seconds(path: Path) -> float:
+    try:
+        completed = subprocess.run(
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                str(path),
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except OSError as exc:
+        raise VideoServiceError(f"音频分段失败：无法启动 ffprobe。{exc}") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise VideoServiceError("音频分段失败：ffprobe 读取音频时长超时。") from exc
+
+    if completed.returncode != 0:
+        detail = (completed.stderr or completed.stdout or "").strip().splitlines()[-1:]
+        suffix = f"：{detail[0]}" if detail else "。"
+        raise VideoServiceError(f"音频分段失败：无法读取音频时长{suffix}")
+
+    try:
+        duration = float(completed.stdout.strip())
+    except ValueError as exc:
+        raise VideoServiceError("音频分段失败：ffprobe 返回了无效音频时长。") from exc
+    if duration <= 0:
+        raise VideoServiceError("音频分段失败：音频时长无效。")
+    return duration
+
+
+def _initial_segment_time_seconds(size: int, duration: float, max_request_bytes: int) -> int:
+    estimated_segments = max(2, math.ceil(size / max_request_bytes))
+    safe_duration = duration / estimated_segments * 0.85
+    return max(10, int(safe_duration))
+
+
+def _run_ffmpeg(args: list[str], message: str) -> None:
+    try:
+        completed = subprocess.run(
+            args,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+    except OSError as exc:
+        raise VideoServiceError(f"{message}：无法启动 ffmpeg。{exc}") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise VideoServiceError(f"{message}：ffmpeg 处理超时。") from exc
+
+    if completed.returncode != 0:
+        detail = (completed.stderr or completed.stdout or "").strip().splitlines()[-1:]
+        suffix = f"：{detail[0]}" if detail else "。"
+        raise VideoServiceError(f"{message}{suffix}")
 
 
 def _get_task_row(task_id: str) -> dict[str, Any] | None:
@@ -163,11 +282,12 @@ def _max_duration_seconds() -> int:
     return _int_env("STEP_ASR_MAX_DURATION_SECONDS", DEFAULT_MAX_DURATION_SECONDS)
 
 
-def _max_audio_file_bytes() -> int:
-    megabytes = _int_env("STEP_ASR_MAX_AUDIO_FILE_MB", 0)
+def _max_stepaudio_request_bytes() -> int:
+    megabytes = _int_env("STEP_ASR_MAX_REQUEST_FILE_MB", 0)
     if megabytes > 0:
-        return megabytes * 1024 * 1024
-    return _int_env("STEP_ASR_MAX_AUDIO_FILE_BYTES", DEFAULT_MAX_AUDIO_FILE_BYTES)
+        return min(megabytes * 1024 * 1024, DEFAULT_MAX_STEP_AUDIO_REQUEST_BYTES)
+    configured_bytes = _int_env("STEP_ASR_MAX_REQUEST_FILE_BYTES", DEFAULT_MAX_STEP_AUDIO_REQUEST_BYTES)
+    return min(configured_bytes, DEFAULT_MAX_STEP_AUDIO_REQUEST_BYTES)
 
 
 def _task_ttl_seconds() -> int:

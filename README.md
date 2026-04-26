@@ -63,4 +63,4 @@ npm run dev
 - 自动 STT 仅在公开字幕不可用时触发；未在 `.env` 中配置 `STEP_API_KEY` 时不会影响视频解析和下载，只会提示文稿暂不可用。
 - AI 总结依赖 DeepSeek；未配置 `DEEPSEEK_API_KEY` 时不会影响视频解析、转写和下载接口，但总结流式接口会返回清晰错误。
 - DeepSeek 思考模式默认关闭；如需开启，在 `.env` 中设置 `DEEPSEEK_THINKING_ENABLED=true`。
-- `.env` 中的 STT 时长和音频大小限制使用分钟与 MB 配置，见 `.env.example`。
+- `.env` 中的 STT 时长和 StepAudio 单次请求分段阈值使用分钟与 MB 配置，见 `.env.example`。

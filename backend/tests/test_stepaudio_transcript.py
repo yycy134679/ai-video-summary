@@ -69,6 +69,61 @@ def test_transcribe_audio_file_requires_api_key(tmp_path: Path, monkeypatch):
         transcribe_audio_file(audio_file)
 
 
+def test_transcribe_audio_with_segments_uses_single_request_for_small_audio(tmp_path: Path, monkeypatch):
+    audio_file = tmp_path / "sample.mp3"
+    audio_file.write_bytes(b"small audio")
+    calls: list[Path] = []
+
+    monkeypatch.setattr(transcript_service, "_max_stepaudio_request_bytes", lambda: 1024)
+    monkeypatch.setattr(transcript_service, "transcribe_audio_file", lambda path: calls.append(path) or "完整文稿")
+
+    result = transcript_service._transcribe_audio_with_segments(audio_file)
+
+    assert result == "完整文稿"
+    assert calls == [audio_file]
+
+
+def test_transcribe_audio_with_segments_splits_large_audio_and_merges_text(tmp_path: Path, monkeypatch):
+    audio_file = tmp_path / "large.mp3"
+    first_chunk = tmp_path / "segment-000.mp3"
+    second_chunk = tmp_path / "segment-001.mp3"
+    audio_file.write_bytes(b"x" * 30)
+    first_chunk.write_bytes(b"a" * 10)
+    second_chunk.write_bytes(b"b" * 10)
+    calls: list[Path] = []
+
+    monkeypatch.setattr(transcript_service, "_max_stepaudio_request_bytes", lambda: 20)
+    monkeypatch.setattr(transcript_service, "_split_audio_file", lambda path, max_bytes: [first_chunk, second_chunk])
+
+    def fake_transcribe(path: Path) -> str:
+        calls.append(path)
+        return "第一段" if path == first_chunk else "第二段"
+
+    monkeypatch.setattr(transcript_service, "transcribe_audio_file", fake_transcribe)
+
+    result = transcript_service._transcribe_audio_with_segments(audio_file)
+
+    assert result == "第一段\n\n第二段"
+    assert calls == [first_chunk, second_chunk]
+
+
+def test_validate_audio_file_does_not_reject_large_audio(tmp_path: Path):
+    audio_file = tmp_path / "large.mp3"
+    audio_file.write_bytes(b"x" * 50)
+
+    assert transcript_service._validate_audio_file(audio_file) == 50
+
+
+def test_stepaudio_request_limit_cannot_exceed_safe_default(monkeypatch):
+    monkeypatch.setattr(
+        transcript_service,
+        "get_config_value",
+        lambda name, default="": "64" if name == "STEP_ASR_MAX_REQUEST_FILE_MB" else default,
+    )
+
+    assert transcript_service._max_stepaudio_request_bytes() == transcript_service.DEFAULT_MAX_STEP_AUDIO_REQUEST_BYTES
+
+
 def test_stepaudio_api_key_can_be_loaded_from_dotenv(tmp_path: Path, monkeypatch):
     dotenv_path = tmp_path / ".env"
     dotenv_path.write_text('STEP_API_KEY="sk-from-dotenv"\n', encoding="utf-8")
@@ -103,7 +158,7 @@ def test_load_dotenv_values_parses_quotes_export_and_comments(tmp_path: Path):
                 "STEP_API_KEY='sk-test'",
                 "export STEP_ASR_MAX_CONCURRENT_TASKS=2",
                 "STEP_ASR_MAX_DURATION_MINUTES=30",
-                "STEP_ASR_MAX_AUDIO_FILE_MB=64",
+                "STEP_ASR_MAX_REQUEST_FILE_MB=39",
                 "STEP_AUDIO_ASR_URL=https://example.com/sse # inline comment",
             ]
         ),
@@ -115,7 +170,7 @@ def test_load_dotenv_values_parses_quotes_export_and_comments(tmp_path: Path):
     assert values["STEP_API_KEY"] == "sk-test"
     assert values["STEP_ASR_MAX_CONCURRENT_TASKS"] == "2"
     assert values["STEP_ASR_MAX_DURATION_MINUTES"] == "30"
-    assert values["STEP_ASR_MAX_AUDIO_FILE_MB"] == "64"
+    assert values["STEP_ASR_MAX_REQUEST_FILE_MB"] == "39"
     assert values["STEP_AUDIO_ASR_URL"] == "https://example.com/sse"
 
 
