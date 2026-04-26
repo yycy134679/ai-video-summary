@@ -74,6 +74,14 @@
 - DASH 分离流通过 `ffmpeg` 合并为 MP4。
 - 音频档位通过 `ffmpeg` 导出 MP3。
 - 媒体下载带原页面 `Referer`、浏览器 `User-Agent` 和 `Origin`。
+- 通过 `x/player/v2` 获取字幕列表，下载 `subtitle_url` 指向的 JSON，并转换成 `SubtitleInfo` 供后续 AI 总结使用。
+
+字幕能力边界：
+
+- 只处理匿名状态下 `x/player/v2` 返回的公开字幕。
+- 不读取 Cookie，不请求登录态字幕。
+- 不做音频转写或 ASR 回退。
+- 字幕不存在、需要登录、接口失败或字幕 JSON 异常时，视频解析仍成功，接口只返回字幕不可用状态和中文说明。
 
 ## 5. 清晰度限制
 
@@ -151,6 +159,17 @@ if (window.__playinfo__) {
 
 如果未来遇到更严格的图片防盗链，再考虑增加受控封面代理，但代理必须限制目标域名，避免引入 SSRF 风险。
 
+### 6.5 字幕不可用
+
+B 站字幕数据来自 `x/player/v2` 的 `data.subtitle.subtitles`。每条字幕包含语言、语言名称和 `subtitle_url`，字幕文件通常是 JSON，正文在 `body[].content` 中，时间范围在 `body[].from` 和 `body[].to` 中。
+
+当前处理方式：
+
+- 有公开字幕时，解析接口直接返回字幕全文和分段 cue。
+- 多语言字幕全部返回。
+- `subtitle_url` 支持 `//...` 形式，会规范化成 `https://...`。
+- 没有字幕、`need_login_subtitle=true`、字幕接口失败或字幕文件格式异常时，不让视频解析失败，只返回 `subtitleStatus=unavailable` 和中文说明。
+
 ## 7. 验证记录
 
 已做过的关键验证：
@@ -160,7 +179,7 @@ if (window.__playinfo__) {
 - 通过前端代理下载 `720p`，返回 `video/mp4`，文件约 15 MB。
 - `ffprobe` 验证下载文件为 H.264，分辨率 1280x720。
 - 封面图带 `localhost` Referer 会 403，不带 Referer 会 200。
-- 后端测试：`.venv/bin/python -m pytest backend/tests`，13 个测试通过。
+- 后端测试：`.venv/bin/python -m pytest backend/tests`。
 - 前端构建：`npm run build` 通过。
 
 ## 8. 后续建议
@@ -168,4 +187,4 @@ if (window.__playinfo__) {
 - 给 `QualityOption` 补充真实高度、码率或文件大小，让前端显示“最高可用 720P MP4”这类更准确文案。
 - 将 Provider 错误升级为结构化错误码，方便前端区分登录限制、风控、清晰度不可用和网络失败。
 - 如果要引入第三方解析 API，应作为单独 Provider，并默认关闭。
-- 如果要支持登录态或高画质，先讨论安全边界，不要新增普通用户 Cookie 输入框。
+- 如果要支持登录态字幕、高画质或语音转写，先讨论安全边界，不要新增普通用户 Cookie 输入框。
