@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import queue as _queue
 import re
 import uuid
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 
 from pydantic import ValidationError
 
@@ -61,46 +63,99 @@ def stream_summary_events(payload: SummaryStreamRequest) -> Iterator[str]:
 
     yield _event("transcript", _dump_model(transcript.value))
 
+    # --- 并发生成摘要与思维导图 ---
     summary_markdown = ""
+    summary_completed = False
+    summary_fatal = False
+    mindmap_completed = False
+    mindmap_fatal = False
+
+    event_queue: _queue.Queue[tuple[str, object]] = _queue.Queue()
+
+    def run_summary() -> None:
+        nonlocal summary_markdown, summary_completed, summary_fatal
+        try:
+            for delta in stream_chat_completion(
+                build_summary_messages(video, transcript.value, payload.style, payload.customPrompt),
+                max_tokens=8192,
+            ):
+                summary_markdown += delta
+                event_queue.put(("summary_delta", {"text": delta}))
+        except DeepSeekError as exc:
+            summary_fatal = True
+            if not summary_markdown.strip():
+                event_queue.put(("summary_fatal", str(exc)))
+            else:
+                event_queue.put(("summary_partial", str(exc)))
+        finally:
+            event_queue.put(("summary_end", None))
+
+    def run_mindmap() -> None:
+        nonlocal mindmap_completed, mindmap_fatal
+        try:
+            # 思维导图不再依赖摘要结果，直接基于文稿生成
+            mindmap_payload = complete_json(
+                build_mindmap_messages(video, transcript.value),
+                max_tokens=4096,
+            )
+            mindmap = MindMapNode.model_validate(mindmap_payload)
+            mindmap = normalize_mindmap(mindmap)
+            event_queue.put(("mindmap_done", _dump_model(mindmap)))
+            mindmap_completed = True
+        except (DeepSeekError, ValidationError, ValueError) as exc:
+            mindmap_fatal = True
+            event_queue.put(("mindmap_partial", str(exc)))
+        finally:
+            event_queue.put(("mindmap_end", None))
+
     yield _stage("summarizing", "running", "正在生成结构化摘要。")
-    try:
-        for delta in stream_chat_completion(
-            build_summary_messages(video, transcript.value, payload.style, payload.customPrompt),
-            max_tokens=8192,
-        ):
-            summary_markdown += delta
-            yield _event("summary_delta", {"text": delta})
-    except DeepSeekError as exc:
-        if not summary_markdown.strip():
-            yield _stage("summarizing", "failed", str(exc))
-            yield _event("fatal_error", {"message": str(exc)})
-            return
-        yield _event("partial_error", {"scope": "summary", "message": f"摘要生成中断，已保留已收到内容：{exc}"})
-
-    summary_markdown = summary_markdown.strip()
-    summary = build_structured_summary_from_markdown(summary_markdown)
-    yield _event(
-        "summary_done",
-        {
-            "markdown": summary_markdown,
-            "summary": _dump_model(summary),
-        },
-    )
-    yield _stage("summarizing", "completed", "结构化摘要生成完成。")
-
     yield _stage("building_mindmap", "running", "正在生成思维导图。")
-    try:
-        mindmap_payload = complete_json(
-            build_mindmap_messages(video, transcript.value, summary_markdown),
-            max_tokens=4096,
-        )
-        mindmap = MindMapNode.model_validate(mindmap_payload)
-        mindmap = normalize_mindmap(mindmap)
-        yield _event("mindmap_done", {"mindmap": _dump_model(mindmap)})
-        yield _stage("building_mindmap", "completed", "思维导图生成完成。")
-    except (DeepSeekError, ValidationError, ValueError) as exc:
-        yield _stage("building_mindmap", "failed", "思维导图生成失败，摘要和原文稿仍可使用。")
-        yield _event("partial_error", {"scope": "mindmap", "message": f"思维导图生成失败：{exc}"})
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        executor.submit(run_summary)
+        executor.submit(run_mindmap)
+
+        pending_tasks = 2
+        while pending_tasks > 0:
+            event_name, data = event_queue.get()
+
+            if event_name == "summary_delta":
+                yield _event("summary_delta", data)
+            elif event_name == "summary_fatal":
+                yield _stage("summarizing", "failed", str(data))
+                yield _event("fatal_error", {"message": str(data)})
+            elif event_name == "summary_partial":
+                yield _event("partial_error", {"scope": "summary", "message": f"摘要生成中断，已保留已收到内容：{data}"})
+            elif event_name == "summary_end":
+                pending_tasks -= 1
+                if not summary_fatal:
+                    summary_markdown = summary_markdown.strip()
+                    summary = build_structured_summary_from_markdown(summary_markdown)
+                    yield _event(
+                        "summary_done",
+                        {
+                            "markdown": summary_markdown,
+                            "summary": _dump_model(summary),
+                        },
+                    )
+                    yield _stage("summarizing", "completed", "结构化摘要生成完成。")
+                    summary_completed = True
+            elif event_name == "mindmap_done":
+                yield _event("mindmap_done", {"mindmap": data})
+            elif event_name == "mindmap_partial":
+                yield _stage("building_mindmap", "failed", "思维导图生成失败，摘要和原文稿仍可使用。")
+                yield _event("partial_error", {"scope": "mindmap", "message": f"思维导图生成失败：{data}"})
+            elif event_name == "mindmap_end":
+                pending_tasks -= 1
+                if mindmap_completed:
+                    yield _stage("building_mindmap", "completed", "思维导图生成完成。")
+
+    # --- 摘要完全失败时的降级处理 ---
+    if summary_fatal and not summary_markdown.strip():
+        # 摘要完全失败，但思维导图可能已生成。跳过 QA，保留已有结果。
+        yield _stage("completed", "completed", "分析已完成（摘要生成失败，思维导图和原文稿仍可使用）。")
+        yield _event("done", {"ok": True})
+        return
 
     yield _stage("preparing_qa", "running", "正在准备临时问答上下文。")
     try:
@@ -152,11 +207,11 @@ def normalize_mindmap(root: MindMapNode) -> MindMapNode:
         nonlocal counter
         counter += 1
         node_id = _safe_node_id(node.id) or f"node-{counter}"
-        children = [visit(child, depth + 1) for child in node.children[:12] if depth < 3]
+        children = [visit(child, depth + 1) for child in node.children[:16] if depth < 3]
         return MindMapNode(
             id=node_id,
             title=node.title.strip()[:80] or "未命名节点",
-            summary=(node.summary or "").strip()[:160] or None,
+            summary=(node.summary or "").strip()[:280] or None,
             children=children,
         )
 

@@ -65,25 +65,48 @@ def build_summary_messages(
 def build_mindmap_messages(
     video: VideoInfo,
     transcript: SummaryTranscript,
-    summary_markdown: str,
+    summary_markdown: str | None = None,
 ) -> list[dict[str, str]]:
     system_prompt = """
-你是一个只输出 json 的视频思维导图生成器。你只能基于提供的视频文稿和摘要生成树形结构。
-不要输出 Markdown、解释文字、代码块或额外字段。节点最多 4 层，每层尽量不超过 12 个节点。
+你是一个只输出 JSON 的视频思维导图生成器。你只能基于提供的视频文稿生成树形结构。
+不要输出 Markdown、解释文字、代码块或额外字段。节点最多 4 层。
 每个节点必须包含 id、title、summary、children。id 使用稳定短字符串。
+
+内容深度要求：
+- title 必须简洁有力，能准确概括该节点的核心主题，可以使用"前缀：描述"的格式。
+- summary 必须包含具体的论据、数据、例子、细节或背景信息，不能是空泛的标题重复。这是展示内容深度的关键字段。
+- 思维导图要覆盖视频的核心模块、关键论点、支撑证据和细节展开，内容要详尽。
+- 不限制节点数量，但要求内容详细、信息丰富。
 """.strip()
+
+    summary_section = ""
+    if summary_markdown:
+        summary_section = f"""
+已生成摘要（供参考，思维导图应更详细）：
+<summary_markdown>
+{summary_markdown}
+</summary_markdown>
+""".strip()
+
     user_prompt = f"""
-请根据视频内容输出 json，格式必须与示例一致：
+请根据视频内容输出 JSON，格式必须与示例一致：
 {{
   "id": "root",
   "title": "视频主题",
-  "summary": "中心主题说明",
+  "summary": "中心主题说明，包含具体背景、核心论点和视频传达的关键信息",
   "children": [
     {{
       "id": "node-1",
       "title": "一级主题",
-      "summary": "主题说明",
-      "children": []
+      "summary": "该主题的具体论据、数据、例子或细节展开",
+      "children": [
+        {{
+          "id": "node-1-1",
+          "title": "二级主题",
+          "summary": "更具体的细节、证据或实施要点",
+          "children": []
+        }}
+      ]
     }}
   ]
 }}
@@ -91,11 +114,7 @@ def build_mindmap_messages(
 视频标题：{video.title}
 来源链接：{video.webpageUrl}
 文稿来源：{_transcript_source_label(transcript)}
-
-已生成摘要：
-<summary_markdown>
-{summary_markdown}
-</summary_markdown>
+{summary_section}
 
 完整文稿：
 <transcript>

@@ -35,7 +35,7 @@ import type {
   VideoInfo
 } from "./types";
 import { formatCueTime, formatDuration } from "./utils/format";
-import { collectNodeIds, getMindMapRows, wrapText } from "./utils/mindmap";
+import { collectNodeIds, getMindMapLayout, parseTitleParts, truncateText } from "./utils/mindmap";
 import { buildSummaryExport } from "./utils/summaryExport";
 import { isHttpUrl, safeFilename } from "./utils/url";
 
@@ -62,6 +62,7 @@ function App() {
   const [notice, setNotice] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [isAsking, setIsAsking] = useState(false);
+  const [retryableError, setRetryableError] = useState<{ type: "asr" | "deepseek"; message: string } | null>(null);
   const summaryAbortRef = useRef<AbortController | null>(null);
   const qaAbortRef = useRef<AbortController | null>(null);
 
@@ -87,18 +88,11 @@ function App() {
     };
   }, []);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const normalizedUrl = url.trim();
-    if (!normalizedUrl) {
-      setError("请先粘贴一个公开视频链接。");
-      return;
-    }
-    if (!isHttpUrl(normalizedUrl)) {
-      setError("请输入有效的公开视频链接，仅支持 http 或 https 地址。");
-      return;
-    }
-
+  async function startSummary(
+    targetUrl: string,
+    targetStyle: SummaryStyle,
+    targetCustomPrompt: string
+  ) {
     summaryAbortRef.current?.abort();
     const controller = new AbortController();
     summaryAbortRef.current = controller;
@@ -106,6 +100,7 @@ function App() {
     resetResultState();
     setError("");
     setNotice("");
+    setRetryableError(null);
     setIsRunning(true);
     setActiveTab("summary");
     navigateTo("summary");
@@ -113,9 +108,9 @@ function App() {
     try {
       await streamVideoSummary(
         {
-          url: normalizedUrl,
-          style,
-          customPrompt: customPrompt.trim() || null
+          url: targetUrl,
+          style: targetStyle,
+          customPrompt: targetCustomPrompt.trim() || null
         },
         {
           onStage: updateStage,
@@ -143,6 +138,12 @@ function App() {
           },
           onFatalError: (message) => {
             setError(message);
+            const asrKeywords = ["转写", "ASR", "字幕", "文稿", "转录", "音频", "ffmpeg"];
+            const isAsr = asrKeywords.some((kw) => message.includes(kw));
+            setRetryableError({
+              type: isAsr ? "asr" : "deepseek",
+              message
+            });
             setIsRunning(false);
           },
           onDone: () => {
@@ -154,7 +155,14 @@ function App() {
       );
     } catch (err) {
       if (!isAbortError(err)) {
-        setError(err instanceof Error ? err.message : "视频总结失败，请检查链接后重试。");
+        const message = err instanceof Error ? err.message : "视频总结失败，请检查链接后重试。";
+        setError(message);
+        const asrKeywords = ["转写", "ASR", "字幕", "文稿", "转录", "音频", "ffmpeg"];
+        const isAsr = asrKeywords.some((kw) => message.includes(kw));
+        setRetryableError({
+          type: isAsr ? "asr" : "deepseek",
+          message
+        });
       }
     } finally {
       if (summaryAbortRef.current === controller) {
@@ -164,6 +172,25 @@ function App() {
         setIsRunning(false);
       }
     }
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const normalizedUrl = url.trim();
+    if (!normalizedUrl) {
+      setError("请先粘贴一个公开视频链接。");
+      return;
+    }
+    if (!isHttpUrl(normalizedUrl)) {
+      setError("请输入有效的公开视频链接，仅支持 http 或 https 地址。");
+      return;
+    }
+    await startSummary(normalizedUrl, style, customPrompt);
+  }
+
+  function handleRetry() {
+    if (!retryableError) return;
+    startSummary(url, style, customPrompt);
   }
 
   function updateStage(event: SummaryStageEvent) {
@@ -184,6 +211,7 @@ function App() {
     setQaMessages([]);
     setQaQuestion("");
     setPartialErrors([]);
+    setRetryableError(null);
   }
 
   function handleReset() {
@@ -304,6 +332,7 @@ function App() {
             error={error}
             notice={notice}
             partialErrors={partialErrors}
+            retryableError={retryableError}
             isRunning={isRunning}
             isAsking={isAsking}
             onReset={handleReset}
@@ -311,6 +340,7 @@ function App() {
             onActiveTabChange={setActiveTab}
             onQuestionChange={setQaQuestion}
             onAsk={handleAsk}
+            onRetry={handleRetry}
           />
         ) : (
           <HomePage
@@ -347,13 +377,15 @@ function SummaryPage({
   error,
   notice,
   partialErrors,
+  retryableError,
   isRunning,
   isAsking,
   onReset,
   onCopy,
   onActiveTabChange,
   onQuestionChange,
-  onAsk
+  onAsk,
+  onRetry
 }: {
   hasResultSurface: boolean;
   video: VideoInfo | null;
@@ -369,6 +401,7 @@ function SummaryPage({
   error: string;
   notice: string;
   partialErrors: string[];
+  retryableError: { type: "asr" | "deepseek"; message: string } | null;
   isRunning: boolean;
   isAsking: boolean;
   onReset: () => void;
@@ -376,6 +409,7 @@ function SummaryPage({
   onActiveTabChange: (value: ActiveTab) => void;
   onQuestionChange: (value: string) => void;
   onAsk: (event: FormEvent<HTMLFormElement>) => void;
+  onRetry: () => void;
 }) {
   if (!hasResultSurface) {
     return (
@@ -425,6 +459,19 @@ function SummaryPage({
             </button>
           </div>
         </div>
+
+        {retryableError ? (
+          <div className="retry-banner" role="alert">
+            <div>
+              <strong>{retryableError.type === "asr" ? "视频转写失败" : "AI 分析服务暂时不可用"}</strong>
+              <span>{retryableError.message}</span>
+            </div>
+            <button type="button" className="primary-button compact-button" onClick={onRetry} disabled={isRunning}>
+              <RefreshCw aria-hidden="true" size={16} />
+              重新分析
+            </button>
+          </div>
+        ) : null}
 
         <div className="report-layout">
           <VideoPreviewPanel video={video} />
@@ -648,8 +695,14 @@ function getCompactStageLabel(stage: SummaryStage | null): string {
   if (stage === "loading_transcript" || stage === "transcribing") {
     return "视频转写";
   }
-  if (stage === "summarizing" || stage === "building_mindmap" || stage === "preparing_qa" || stage === "completed") {
-    return "生成总结";
+  if (stage === "summarizing" || stage === "building_mindmap") {
+    return "AI 分析中";
+  }
+  if (stage === "preparing_qa") {
+    return "准备问答";
+  }
+  if (stage === "completed") {
+    return "完成";
   }
   return "解析视频";
 }
@@ -676,20 +729,15 @@ function MindMapPanel({
     return <EmptyPanel icon={<MapIcon size={22} />} text="思维导图生成后会显示在这里。" />;
   }
 
-  const rows = getMindMapRows(mindmap, expandedIds);
-  const maxDepth = rows.reduce((max, row) => Math.max(max, row.depth), 0);
-  const nodeWidth = 220;
-  const rowHeight = 82;
-  const depthGap = 250;
-  const svgWidth = Math.max(760, maxDepth * depthGap + nodeWidth + 64);
-  const svgHeight = Math.max(360, rows.length * rowHeight + 44);
-  const positions = new Map(rows.map((row, index) => [
-    row.node.id,
-    {
-      x: 24 + row.depth * depthGap,
-      y: 24 + index * rowHeight
-    }
-  ]));
+  const layout = getMindMapLayout(mindmap, expandedIds, {
+    rootCircleX: 320,
+    depthGap: 300,
+    leafGap: 52,
+    topPadding: 70,
+    rightPadding: 96,
+    bottomPadding: 90
+  });
+  const nodePositions = new Map(layout.nodes.map((item) => [item.node.id, item]));
 
   function toggleNode(node: MindMapNode) {
     if (!node.children.length) {
@@ -717,68 +765,99 @@ function MindMapPanel({
         </button>
       </div>
       <div className="mindmap-canvas">
-        <svg ref={svgRef} viewBox={`0 0 ${svgWidth} ${svgHeight}`} width={svgWidth} height={svgHeight} role="img" aria-label="视频思维导图">
-          <rect width={svgWidth} height={svgHeight} rx="16" fill="#f8fbff" />
-          {rows.map((row) => {
-            const current = positions.get(row.node.id);
-            const parent = row.parentId ? positions.get(row.parentId) : null;
-            if (!current || !parent) {
+        <svg ref={svgRef} viewBox={`0 0 ${layout.width} ${layout.height}`} width={layout.width} height={layout.height} role="img" aria-label="视频思维导图">
+          <rect width={layout.width} height={layout.height} rx="18" fill="#fbfdff" />
+          {layout.nodes.map((item) => {
+            const parent = item.parentId ? nodePositions.get(item.parentId) : null;
+            if (!parent) {
               return null;
             }
+            const strokeColor = item.branchColor?.main ?? "#6aa3ff";
+            const sourceX = parent.lineEndX;
+            const targetX = item.hasVisibleChildren ? item.lineEndX : item.lineStartX;
+            const curve = Math.min(92, Math.max(46, (targetX - sourceX) * 0.42));
             return (
               <path
-                key={`${row.parentId}-${row.node.id}`}
-                d={`M ${parent.x + nodeWidth} ${parent.y + 34} C ${parent.x + nodeWidth + 45} ${parent.y + 34}, ${current.x - 45} ${current.y + 34}, ${current.x} ${current.y + 34}`}
+                key={`${item.parentId}-${item.node.id}`}
+                d={`M ${sourceX} ${parent.y} C ${sourceX + curve} ${parent.y}, ${targetX - curve} ${item.y}, ${targetX} ${item.y}`}
                 fill="none"
-                stroke="#b9c7dd"
-                strokeWidth="2"
+                stroke={strokeColor}
+                strokeWidth={item.depth === 1 ? 2.4 : 1.9}
+                strokeLinecap="round"
+                opacity="0.82"
               />
             );
           })}
-          {rows.map((row) => {
-            const position = positions.get(row.node.id)!;
-            const isExpanded = expandedIds.has(row.node.id);
-            const lines = wrapText(row.node.title, 13).slice(0, 2);
+          {layout.nodes.map((item) => {
+            const isExpanded = expandedIds.has(item.node.id);
+            const isRoot = item.depth === 0;
+            const color = item.branchColor;
+            const titleParts = parseTitleParts(item.node.title);
+            const titleLimit = isRoot ? 24 : item.hasVisibleChildren ? 18 : 24;
+            const titleText = truncateText(titleParts.rest, titleLimit);
+            const prefixText = titleParts.prefix ? truncateText(titleParts.prefix, 9) : null;
+            const showSummary = !isRoot && !item.hasVisibleChildren && Boolean(item.node.summary);
+            const summaryText = showSummary ? truncateText(item.node.summary!, 30) : "";
+            const lineColor = isRoot ? "#4b8ee8" : (color?.main ?? "#8aa6c8");
+            const textColor = isRoot ? "#6b7280" : "#6f7888";
+            const circleFill = "#fbfdff";
+
             return (
               <g
-                key={row.node.id}
-                role={row.node.children.length ? "button" : "img"}
-                tabIndex={row.node.children.length ? 0 : -1}
-                transform={`translate(${position.x} ${position.y})`}
-                onClick={() => toggleNode(row.node)}
+                key={item.node.id}
+                role={item.node.children.length ? "button" : "img"}
+                tabIndex={item.node.children.length ? 0 : -1}
+                className="mindmap-branch-node"
+                onClick={() => toggleNode(item.node)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
-                    toggleNode(row.node);
+                    toggleNode(item.node);
                   }
                 }}
               >
-                <rect
-                  width={nodeWidth}
-                  height="68"
-                  rx="10"
-                  fill={row.depth === 0 ? "#004aad" : "#ffffff"}
-                  stroke={row.depth === 0 ? "#004aad" : "#d7deeb"}
-                  strokeWidth="1.5"
+                <line
+                  x1={item.lineStartX}
+                  y1={item.y}
+                  x2={item.lineEndX}
+                  y2={item.y}
+                  stroke={lineColor}
+                  strokeWidth={isRoot ? 2.2 : 1.6}
+                  strokeLinecap="round"
+                  opacity={isRoot ? 0.95 : 0.78}
                 />
-                {lines.map((line, index) => (
-                  <text
-                    key={line}
-                    x="18"
-                    y={lines.length === 1 ? 37 : 29 + index * 19}
-                    fill={row.depth === 0 ? "#ffffff" : "#071b3a"}
-                    fontSize="15"
-                    fontWeight="700"
-                  >
-                    {line}
-                  </text>
-                ))}
-                {row.node.children.length ? (
-                  <g transform="translate(190 23)">
-                    <circle r="11" cx="11" cy="11" fill={row.depth === 0 ? "#ffffff" : "#e8f0ff"} />
-                    <text x="11" y="16" textAnchor="middle" fill="#004aad" fontSize="15" fontWeight="800">
-                      {isExpanded ? "-" : "+"}
-                    </text>
+                <text
+                  x={item.textX}
+                  y={item.y - 9}
+                  fill={textColor}
+                  fontSize={isRoot ? "16" : item.depth === 1 ? "15" : "14"}
+                  fontWeight={isRoot ? "500" : item.hasVisibleChildren ? "500" : "450"}
+                  className="mindmap-label"
+                >
+                  {prefixText ? (
+                    <>
+                      <tspan fill={item.hasVisibleChildren ? textColor : "#3d4655"} fontWeight={item.hasVisibleChildren ? "500" : "750"}>
+                        {prefixText}：
+                      </tspan>
+                      <tspan>{titleText}</tspan>
+                    </>
+                  ) : (
+                    <tspan>{isRoot ? truncateText(item.node.title, 24) : titleText}</tspan>
+                  )}
+                  {summaryText ? (
+                    <tspan fill="#8b94a3" fontWeight="400">
+                      {titleParts.prefix ? "  " : "："}{summaryText}
+                    </tspan>
+                  ) : null}
+                </text>
+                {(item.node.children.length || isRoot) ? (
+                  <g className="mindmap-toggle" transform={`translate(${item.lineEndX} ${item.y})`}>
+                    <circle r={isRoot ? 7.5 : 6.5} fill={circleFill} stroke={lineColor} strokeWidth="1.8" />
+                    {item.node.children.length ? (
+                      <text x="0" y="4.5" textAnchor="middle" fill={lineColor} fontSize="13" fontWeight="800">
+                        {isExpanded ? "−" : "+"}
+                      </text>
+                    ) : null}
                   </g>
                 ) : null}
               </g>

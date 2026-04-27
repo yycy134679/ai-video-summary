@@ -848,6 +848,36 @@ a {
   gap: 12px;
 }
 
+.retry-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 14px 18px;
+  background: #fff8e6;
+  border: 1px solid rgba(138, 90, 0, 0.18);
+  border-radius: 8px;
+}
+
+.retry-banner strong,
+.retry-banner span {
+  display: block;
+}
+
+.retry-banner strong {
+  color: var(--warning);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.retry-banner span {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .report-layout {
   display: grid;
   grid-template-columns: clamp(300px, 25vw, 420px) minmax(0, 1fr);
@@ -1292,12 +1322,38 @@ a {
 .mindmap-canvas {
   max-width: 100%;
   overflow: auto;
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  background: #fbfdff;
+  border: 1px solid #d7e0ee;
+  border-radius: 18px;
 }
 
 .mindmap-canvas svg {
   display: block;
+}
+
+.mindmap-branch-node[role="button"] {
+  cursor: pointer;
+}
+
+.mindmap-label {
+  letter-spacing: 0.01em;
+  dominant-baseline: alphabetic;
+}
+
+.mindmap-toggle circle,
+.mindmap-branch-node line {
+  transition:
+    stroke-width 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.mindmap-branch-node[role="button"]:hover line {
+  opacity: 1;
+  stroke-width: 2.4px;
+}
+
+.mindmap-branch-node[role="button"]:hover .mindmap-toggle circle {
+  stroke-width: 2.4px;
 }
 
 .transcript-heading {
