@@ -126,6 +126,9 @@ export function HomePage({
             <br />
             让你不再浪费时间在冗长的视频上
           </p>
+          <p className="hero-disclaimer">
+            AI 可以提炼要点，但无法替你成长——真正的收获，永远来自你自己的思考。
+          </p>
 
           <form className="hero-form" onSubmit={onSubmit}>
             <div className="hero-input-row">
