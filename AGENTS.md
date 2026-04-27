@@ -2,7 +2,7 @@
 
 ## 项目概览
 
-这是“AI 视频摘要助手”的本地自用 MVP。当前核心流程是：粘贴公开视频链接，解析视频信息，优先读取公开字幕；无公开字幕或字幕解析失败时使用 StepAudio 2.5 ASR 生成文稿，再调用 DeepSeek 生成结构化摘要、思维导图和临时问答会话。原视频、清晰度档位和音频下载保留为结果页附加操作。
+这是“AI 视频摘要助手”的本地自用 MVP。当前核心流程是：粘贴公开视频链接，解析视频信息，优先读取公开字幕；无公开字幕或字幕解析失败时使用 StepAudio 2.5 ASR 生成文稿，再调用 DeepSeek 生成结构化摘要、思维导图和临时问答会话。
 
 暂不包含账号、会员、数据库、多用户队列、历史记录或公网部署安全策略。
 
@@ -123,20 +123,31 @@ npm run build
 
 - `backend/app/main.py`：FastAPI 应用、CORS、接口路由、SSE 响应和 HTTP 错误映射。
 - `backend/app/models.py`：视频解析、下载档位、字幕、转写任务和健康检查模型。
+- `backend/app/env_config.py`：环境变量加载，从项目根目录 `.env` 读取配置。
 - `backend/app/video_service.py`：Provider 调度、URL 校验、档位构建和下载入口。
-- `backend/app/transcript_service.py`：内存转写任务、音频抽取、STT 限制、任务 TTL 和清理。
+- `backend/app/transcript_service.py`：内存转写任务、音频抽取、STT 限制、音频分段、任务 TTL 和清理。
 - `backend/app/stepaudio_client.py`：StepAudio 2.5 ASR SSE 调用和响应解析。
 - `backend/app/deepseek_client.py`：DeepSeek OpenAI-compatible Chat Completions 封装、流式解析和 JSON 输出。
 - `backend/app/summary_service.py`：AI 总结编排、SSE 事件、结构化摘要、思维导图和临时问答会话。
 - `backend/app/summary_models.py`：摘要、思维导图、阶段事件、文稿和问答模型。
+- `backend/app/summary_events.py`：SSE 事件格式化工具和 Pydantic 模型序列化。
+- `backend/app/summary_markdown_parser.py`：从摘要 Markdown 确定性规则解析 StructuredSummary。
+- `backend/app/summary_session_store.py`：问答内存会话存储、TTL 清理和消息追加。
+- `backend/app/summary_transcript_resolver.py`：总结流程中字幕/STT 文稿调度。
 - `backend/app/prompt_templates.py`：总结、思维导图和问答提示词。
 - `backend/app/providers/`：平台 Provider。抖音优先走 `douyin_provider.py`，B 站优先走 `bilibili_provider.py`，其他平台走 `yt_dlp_provider.py`。
 - `backend/tests/test_video_service.py`：后端核心服务、Provider 调度和平台解析辅助函数测试。
 - `backend/tests/test_ai_summary.py`：DeepSeek、总结 SSE、问答会话和健康检查测试。
 - `frontend/src/api.ts`：前端 API 调用、SSE 读取、下载流读取和文件名解析。
 - `frontend/src/types.ts`：前端类型。
-- `frontend/src/App.tsx`：首页、解析、总结、文稿、思维导图、问答和下载主流程。
+- `frontend/src/App.tsx`：首页、总结、文稿、思维导图、问答和下载主流程。
 - `frontend/src/App.css`：当前主要样式文件，已引入 Tailwind CSS v4。
+- `frontend/src/constants/home.ts`：首页静态文案和营销数据常量。
+- `frontend/src/constants/summary.ts`：总结风格列表和阶段定义常量。
+- `frontend/src/utils/format.ts`：时长格式化、时间戳格式化等工具函数。
+- `frontend/src/utils/mindmap.ts`：思维导图布局计算、节点展开/折叠逻辑。
+- `frontend/src/utils/summaryExport.ts`：摘要 Markdown 导出内容构建。
+- `frontend/src/utils/url.ts`：URL 校验和文件名安全处理。
 
 ## 开发约定
 

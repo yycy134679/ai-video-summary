@@ -1,66 +1,227 @@
 # AI 视频摘要助手
 
-本期实现范围是本地自用的 AI 视频总结 MVP：粘贴公开视频链接，自动解析视频信息，优先读取公开字幕；如果视频没有公开字幕或字幕解析失败，会触发 StepAudio 2.5 ASR 生成文字稿，再调用 DeepSeek 生成结构化摘要、思维导图和临时问答会话。原视频 / 4K / 1080P / 720P / 音频下载能力保留为结果页附加操作。
+<div align="center">
 
-暂不包含账号、会员、数据库、多用户队列、历史记录或公网部署安全策略。
+Paste a public video link, get a structured summary, mind map, full transcript, and interactive Q&A — in one shot.
 
-抖音链接会优先走实验性专用解析链路；如果平台返回风控、加密参数缺失或媒体地址不可用，会给出明确错误提示，不承诺稳定绕过平台限制。
+[![Python](https://img.shields.io/badge/Python-3.11+-3c873a?style=flat-square&logo=python)](https://www.python.org)
+[![Node.js](https://img.shields.io/badge/Node.js-20+-3c873a?style=flat-square&logo=nodedotjs)](https://nodejs.org)
+[![React](https://img.shields.io/badge/React-19-61dafb?style=flat-square&logo=react)](https://react.dev)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com)
+[![DeepSeek](https://img.shields.io/badge/DeepSeek-V4_Flash-4f46e5?style=flat-square)](https://platform.deepseek.com)
 
-## 文档入口
+[Overview](#overview) • [Quick Start](#quick-start) • [APIs](#api-endpoints) • [Project Structure](#project-structure) • [Configuration](#configuration) • [Platform Support](#platform-support)
 
-- `docs/PRD.md`：产品愿景和长期功能范围。
-- `docs/需求分析.md`：当前阶段需求边界、竞品观察、平台限制和后续扩展方向。
-- `docs/方案设计.md`：当前工程架构、接口、部署演进和给后续 AI 的开发提示。
-- `docs/B站解析接入记录.md`：B 站解析技术取舍、接入方式、清晰度限制和排障记录。
-- `DESIGN/DESIGN.md`、`DESIGN/首页.html`：首页设计参考。
+</div>
 
-## 前置依赖
+## Overview
 
-- Python 3.11+
-- Node.js 20+
-- ffmpeg
-- StepFun API Key（自动 STT 需要）：在项目根目录 `.env` 中配置 `STEP_API_KEY`
-- DeepSeek API Key（AI 总结需要）：在项目根目录 `.env` 中配置 `DEEPSEEK_API_KEY`
+AI Video Summary Assistant is a local self-serve MVP that transforms public video links into actionable knowledge assets. The pipeline automatically:
 
-## 启动后端
+1. Parses the video metadata (title, author, duration, cover, available download qualities)
+2. Extracts the transcript — preferring public subtitles, falling back to **StepAudio 2.5 ASR**
+3. Calls **DeepSeek V4 Flash** to generate a structured Markdown summary with streaming typewriter effect
+4. Produces a collapsible **mind map** (SVG/PNG exportable)
+5. Sets up a temporary **Q&A session** for follow-up questions based on the full transcript
+
+No database, no accounts, no history — everything lives in memory with TTL cleanup.
+
+> [!NOTE]
+> This is a local/dev-only MVP. Do not expose the current synchronous download, in-memory transcript, or Q&A endpoints directly as a multi-user public service.
+
+## Features
+
+- **One-click pipeline** — parse, transcribe, summarize, mind-map, and Q&A readiness in a single request
+- **Subtitle-first, ASR fallback** — uses public subtitles when available, otherwise triggers StepAudio 2.5 ASR with automatic audio chunking for large files
+- **Streaming summary** — DeepSeek streams Markdown deltas for a typewriter effect in the UI
+- **Structured output** — deterministic rule-based parser extracts one-sentence summary, key points, chapter overview, keywords, actions, and cautions from the generated Markdown
+- **Collapsible mind map** — tree visualization (max 4 levels, 12 nodes/level) with SVG and PNG export; auto-retry on JSON validation failure
+- **Interactive Q&A** — in-memory chat session scoped to the transcript + summary, with TTL-based expiry (default 24 h)
+- **Multi-platform download** — `source` / 4K / 1080p / 720p / audio MP3 qualities, with streaming `FileSystemWritableFileStream` progress
+- **Graceful degradation** — mind-map or Q&A failures do not block the summary or transcript display
+
+## Architecture
+
+```
+Browser (React + Vite + Tailwind CSS v4)
+        │  SSE (fetch + ReadableStream)
+        ▼
+FastAPI backend
+ ├── Provider layer      → Bilibili / Douyin (custom), yt-dlp (fallback)
+ ├── Transcript layer    → subtitles → StepAudio 2.5 ASR
+ ├── DeepSeek client     → Chat Completions (streaming + JSON Output)
+ ├── Summary orchestrator → SSE stage events, mind-map, Q&A session
+ └── In-memory store     → transcript tasks + Q&A sessions (TTL)
+```
+
+The frontend reads SSE events from `POST /api/summaries/stream` (not native `EventSource`) to support POST bodies and cancellation via `AbortController`.
+
+## Prerequisites
+
+- **Python 3.11+** with venv
+- **Node.js 20+** with npm
+- **[ffmpeg](https://ffmpeg.org)** — required for audio extraction, DASH stream merging, and audio segmenting
+- **StepFun API Key** — needed for automatic STT when subtitles are unavailable ([get one](https://platform.stepfun.com))
+- **DeepSeek API Key** — needed for AI summary, mind-map, and Q&A ([get one](https://platform.deepseek.com))
+
+## Quick Start
+
+### 1. Clone & install
 
 ```bash
+git clone <repo-url> && cd ai-video-summary
+
+# Backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements.txt
 cp .env.example .env
-# 编辑 .env，填入 STEP_API_KEY 和 DEEPSEEK_API_KEY
-uvicorn backend.app.main:app --reload
 ```
 
-后端默认运行在 `http://127.0.0.1:8000`。
+Edit `.env` and set your keys:
 
-## 启动前端
+```env
+STEP_API_KEY=sk-...
+DEEPSEEK_API_KEY=sk-...
+```
 
 ```bash
+# Frontend
 cd frontend
 npm install
-npm run dev
 ```
 
-前端默认运行在 `http://127.0.0.1:5173`，并通过 Vite 代理访问 `/api` 后端接口。
+### 2. Start the services
 
-## 接口
+```bash
+# Terminal 1 — backend (from repo root)
+source .venv/bin/activate
+uvicorn backend.app.main:app --reload
+# → http://127.0.0.1:8000
 
-- `POST /api/videos/parse`：解析公开视频链接，返回视频基础信息和可用下载档位。
-- `GET /api/videos/download?url=...&quality=1080p`：按指定档位下载，浏览器以附件形式保存文件。
-- `POST /api/transcripts`：手动创建视频转写任务。
-- `GET /api/transcripts/{taskId}`：查询转写任务状态和文稿结果。
-- `POST /api/summaries/stream`：创建 AI 视频总结任务，使用 SSE 流式返回阶段进度、视频信息、文稿、摘要、思维导图和问答会话。
-- `POST /api/summaries/{sessionId}/questions/stream`：基于当前视频文稿进行临时连续问答，使用 SSE 流式返回回答。
+# Terminal 2 — frontend
+cd frontend
+npm run dev
+# → http://127.0.0.1:5173
+```
 
-## 说明
+### 3. Verify health
 
-- 只处理公开可访问视频，不读取 Cookie，不支持登录或会员内容。
-- B 站公开视频优先走本项目内置网页解析链路，读取页面公开播放信息后下载并合并音视频。
-- 其他平台下载能力由 `yt-dlp` 提供，支持平台范围以当前安装版本为准。
-- 高画质音视频合并和音频导出依赖 `ffmpeg`。
-- 自动 STT 仅在公开字幕不可用时触发；未在 `.env` 中配置 `STEP_API_KEY` 时不会影响视频解析和下载，只会提示文稿暂不可用。
-- AI 总结依赖 DeepSeek；未配置 `DEEPSEEK_API_KEY` 时不会影响视频解析、转写和下载接口，但总结流式接口会返回清晰错误。
-- DeepSeek 思考模式默认关闭；如需开启，在 `.env` 中设置 `DEEPSEEK_THINKING_ENABLED=true`。
-- `.env` 中的 STT 时长和 StepAudio 单次请求分段阈值使用分钟与 MB 配置，见 `.env.example`。
+```bash
+curl http://127.0.0.1:8000/api/health
+# → {"status":"ok","ffmpegAvailable":true,"sttAvailable":true,"deepseekAvailable":true}
+```
+
+If `sttAvailable` or `deepseekAvailable` is `false`, check your `.env` keys.
+
+### 4. Use the app
+
+Open `http://127.0.0.1:5173`, paste a public video link, select a summary style, and click "立即生成报告".
+
+### 5. Run tests
+
+```bash
+.venv/bin/python -m pytest backend/tests
+cd frontend && npm run build
+```
+
+## API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/health` | Backend status, ffmpeg/STT/DeepSeek availability |
+| `POST` | `/api/videos/parse` | Parse video info, download qualities, and subtitle status |
+| `GET` | `/api/videos/download?url=&quality=` | Download video/audio by quality level |
+| `POST` | `/api/transcripts` | Manually create a transcript task |
+| `GET` | `/api/transcripts/{taskId}` | Poll transcript task status and result |
+| `POST` | `/api/summaries/stream` | SSE stream: stages, video info, transcript, summary delta/done, mind-map, Q&A session |
+| `POST` | `/api/summaries/{sessionId}/questions/stream` | SSE stream: ask follow-up questions against the transcript |
+
+SSE responses use `text/event-stream` with `Cache-Control: no-cache`. Event types include `stage`, `video`, `transcript`, `summary_delta`, `summary_done`, `mindmap_done`, `qa_ready`, `partial_error`, `fatal_error`, `done`.
+
+## Project Structure
+
+```
+ai-video-summary/
+├── backend/
+│   ├── app/
+│   │   ├── main.py                    # FastAPI entry, CORS, routes
+│   │   ├── models.py                  # Pydantic models
+│   │   ├── env_config.py              # .env loader
+│   │   ├── video_service.py           # Provider dispatch & download
+│   │   ├── transcript_service.py      # In-memory transcript tasks & TTL
+│   │   ├── stepaudio_client.py        # StepAudio 2.5 ASR SSE client
+│   │   ├── deepseek_client.py         # DeepSeek Chat Completions (stream + JSON)
+│   │   ├── summary_service.py         # Summary orchestrator & Q&A SSE
+│   │   ├── summary_models.py          # Summary, mind-map, Q&A models
+│   │   ├── summary_events.py          # SSE event formatter
+│   │   ├── summary_markdown_parser.py # Deterministic summary parser
+│   │   ├── summary_session_store.py   # In-memory Q&A session store & TTL
+│   │   ├── summary_transcript_resolver.py  # Subtitle/ASR dispatch
+│   │   ├── prompt_templates.py        # System prompts & style templates
+│   │   └── providers/                 # Platform-specific providers
+│   │       ├── base.py
+│   │       ├── bilibili_provider.py   # Bilibili HTML-page parsing
+│   │       ├── douyin_provider.py     # Douyin experimental provider
+│   │       └── yt_dlp_provider.py     # yt-dlp fallback
+│   ├── requirements.txt
+│   └── tests/
+│       ├── test_video_service.py
+│       └── test_ai_summary.py
+├── frontend/
+│   ├── src/
+│   │   ├── App.tsx                    # Home page + summary result page
+│   │   ├── App.css                    # Tailwind CSS v4 entry
+│   │   ├── api.ts                     # Fetch wrappers & SSE parser
+│   │   ├── types.ts
+│   │   ├── constants/
+│   │   │   ├── home.ts               # Homepage copy & marketing data
+│   │   │   └── summary.ts            # Summary styles & stage definitions
+│   │   └── utils/
+│   │       ├── format.ts             # Duration / timestamp formatting
+│   │       ├── mindmap.ts            # Mind-map layout & tree utilities
+│   │       ├── summaryExport.ts      # Markdown export builder
+│   │       └── url.ts                # URL validation & safe filenames
+│   ├── package.json
+│   └── vite.config.ts
+├── docs/                              # Design docs, PRDs, platform notes
+├── DESIGN/                            # Visual design mockups
+├── .env.example
+└── README.md
+```
+
+## Configuration
+
+All config lives in `.env` at the repo root. Key variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `STEP_API_KEY` | — | StepFun API key (required for ASR) |
+| `STEP_ASR_MAX_DURATION_MINUTES` | `30` | Max single-video STT duration |
+| `STEP_ASR_MAX_REQUEST_FILE_MB` | `39` | Audio size threshold before chunked ASR |
+| `DEEPSEEK_API_KEY` | — | DeepSeek API key (required for summary) |
+| `DEEPSEEK_MODEL` | `deepseek-v4-flash` | Model for summaries and Q&A |
+| `DEEPSEEK_THINKING_ENABLED` | `false` | Enable DeepSeek thinking mode |
+| `DEEPSEEK_REQUEST_TIMEOUT_SECONDS` | `900` | Request timeout (longer for full transcripts) |
+| `AI_SUMMARY_SESSION_TTL_SECONDS` | `86400` | Q&A session expiry (24 h) |
+| `AI_SUMMARY_CUSTOM_PROMPT_MAX_CHARS` | `2000` | Max custom prompt length |
+
+## Platform Support
+
+| Platform | Provider | Download | Subtitles | Notes |
+|----------|----------|----------|-----------|-------|
+| Bilibili | Custom (`bilibili_provider`) | `source` (best available MP4), 720p, audio | Anonymous public subtitles via `x/player/v2` | No login — availability depends on anonymous access level |
+| Douyin | Custom (`douyin_provider`) | `source`, audio | N/A | Experimental — watermark removal not guaranteed |
+| Other platforms | `yt-dlp` | 4K / 1080p / 720p / audio | Via yt-dlp extractors | Coverage depends on installed yt-dlp version |
+
+**Download qualities**: `source` (best available MP4), `4k`, `1080p`, `720p`, `audio` (MP3). Unavailable qualities are marked `available: false` in the parse response.
+
+For Bilibili videos, the `source` quality reflects the best MP4 available under anonymous access — it does not represent the platform's maximum possible quality. Frontend cover images use `referrerPolicy="no-referrer"` to avoid Bilibili CDN Referer blocks.
+
+## Limitations
+
+- Local/dev-only MVP — no authentication, rate limiting, quota management, SSRF protection, or persistent storage
+- Transcript tasks and Q&A sessions reset on server restart
+- Douyin provider is experimental and does not guarantee watermark-free output
+- Bilibili provider reads only anonymous public data — login-only subtitles, region-locked content, and high-quality streams (1080p+) may be unavailable
+- Page refresh discards all current results with no recovery path
