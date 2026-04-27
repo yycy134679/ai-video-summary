@@ -312,30 +312,23 @@ export function HomePage({
 }
 
 function ProductPreview() {
-  const chapters = [
-    ["00:00", "GPT-4o 发布介绍"],
-    ["05:32", "核心能力演示"],
-    ["15:47", "开发者工具更新"],
-    ["28:11", "实际应用案例"],
-    ["45:09", "未来展望与 Q&A"]
-  ];
   return (
     <Card className="product-preview" aria-label="模拟产品预览">
       <div className="preview-video-card">
         <div className="preview-meta">
           <span className="avatar-dot" />
           <div>
-            <strong>OpenAI DevDay：GPT-4o 时代的到来</strong>
-            <p>YouTube · 1:24:32</p>
+            <strong>【深度解析】DeepSeek-V4终于换上了"中国心"！</strong>
+            <p>Bilibili · 22:04</p>
           </div>
         </div>
         <div className="mock-video-frame">
-          <div className="mock-person" />
-          <div className="mock-controlbar">
-            <span>1:24:32</span>
-            <span />
-            <span />
-          </div>
+          <img
+            src="https://i0.hdslb.com/bfs/archive/491a9ce8e01149fdb61a45f69a028d6eaa51567f.jpg"
+            alt="视频封面"
+            referrerPolicy="no-referrer"
+            className="cover-img"
+          />
         </div>
       </div>
 
@@ -352,22 +345,19 @@ function ProductPreview() {
         </div>
         <div className="preview-columns preview-columns-single">
           <div>
-            <h3>核心要点</h3>
+            <h3>一句话总结</h3>
+            <p className="summary-one-liner">
+              DeepSeek V4 将模型迁移至华为昇腾等国产芯片，自研 MHC/Ingram 算法，依托中国全球领先的电力与材料供应链，实现了全链路自主可控，证明中国 AI 在"卡脖子"困境下仍能造出比肩 OpenAI、价格却低一个量级的顶级大模型。
+            </p>
+            <h3>核心观点</h3>
             <ul className="bullet-list">
-              <li>GPT-4o 是一个全新的多模态模型，具备更强的理解和生成能力</li>
-              <li>响应速度提升 2 倍，支持实时语音和视觉输入</li>
-              <li>在多语言、推理、代码等任务上实现显著提升</li>
-              <li>将更广泛地应用于产品和开发者生态</li>
+              <li><strong>性能登顶：</strong>V4 Pro 知识、数学任务超越多数开源模型，比肩 Claude Opus-4.6，价格仅其 1/10，配备百万级上下文窗口与双引擎推理模式</li>
+              <li><strong>算力突围：</strong>美国三刀封锁（EDA/光刻机/GPU），中国以华为昇腾+寒武纪+384 卡光模块超节点实现算力自主，集群算力达 NVL72 的 1.7 倍</li>
+              <li><strong>算法创新：</strong>自研 MHC 多流残差约束保持多车道并行稳定，Ingram 外挂记忆模块用哈希索引替代逐层计算，破解国产芯片算子不适配难题</li>
+              <li><strong>能源底牌：</strong>全球数据中心 2030 年用电将翻倍至 945 TWh，中国拥有全球最大电力系统、80%+ 光伏/锂电制造份额及稀土定价权</li>
+              <li><strong>生态独立：</strong>从戈壁滩绿电驱动国产算力到海底光缆输出服务，中国正把 AI 变成水电般的基础设施，打破"硅谷定义、西方定价、全球买单"旧规则</li>
             </ul>
-            <h3>章节速览</h3>
-            <div className="chapter-list">
-              {chapters.map(([time, title]) => (
-                <div key={time}>
-                  <time>{time}</time>
-                  <span>{title}</span>
-                </div>
-              ))}
-            </div>
+
           </div>
         </div>
       </div>

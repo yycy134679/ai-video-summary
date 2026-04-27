@@ -2271,39 +2271,18 @@ a {
 
 .mock-video-frame {
   position: relative;
-  min-height: 260px;
+  aspect-ratio: 16 / 9;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 50% 36%, rgba(255, 255, 255, 0.12), transparent 26%),
-    linear-gradient(145deg, #111827, #050b16);
+  background: #0a0f1a;
   border-radius: 12px;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
-.mock-person {
-  position: absolute;
-  right: 28%;
-  bottom: 40px;
-  width: 86px;
-  height: 150px;
-  background:
-    radial-gradient(circle at 50% 14%, #dec1a4 0 13px, transparent 14px),
-    linear-gradient(#767d66 0 0) center 48px / 70px 92px no-repeat;
-  border-radius: 40px 40px 18px 18px;
-}
-
-.mock-controlbar {
-  position: absolute;
-  right: 16px;
-  bottom: 16px;
-  left: 16px;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 12px;
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: 850;
+.cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .mock-controlbar span:nth-child(2) {
@@ -2371,6 +2350,17 @@ a {
   color: #071b3a;
   font-size: 14px;
   font-weight: 950;
+}
+
+.summary-one-liner {
+  margin: 0 0 20px;
+  padding: 12px 16px;
+  color: #374860;
+  font-size: 13.5px;
+  line-height: 1.65;
+  background: rgba(31, 111, 255, 0.06);
+  border-left: 3px solid #1f6fff;
+  border-radius: 0 8px 8px 0;
 }
 
 .bullet-list {
@@ -2908,7 +2898,7 @@ a {
   }
 
   .mock-video-frame {
-    min-height: 210px;
+    aspect-ratio: 16 / 9;
   }
 
   .feature-grid {
