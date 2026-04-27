@@ -426,206 +426,206 @@ function HomePage({
 }) {
   return (
     <>
-      <section className="workspace-hero premium-hero">
-        <div className="premium-hero-grid">
-          <div className="hero-copy">
-            <p className="eyebrow">
+      <section className="w-full max-w-[1280px] mx-auto px-6 py-20 lg:py-28 relative">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:items-center relative z-10">
+          
+          <div className="space-y-8 max-w-xl">
+            <div className="inline-flex items-center gap-2 rounded-full bg-[#f1f3ff] px-4 py-1.5 text-sm font-medium text-[#003d9b] tracking-wide ring-1 ring-inset ring-[#0052cc]/10">
               <Crown aria-hidden="true" size={16} />
               为重度学习者和内容团队打造
-            </p>
-            <h1>
-              把一小时视频变成
-              <span>值得付费的知识资产</span>
+            </div>
+            
+            <h1 className="text-4xl font-bold leading-tight text-[#041b3c] tracking-tight lg:text-5xl">
+              把一小时长视频变成<br />
+              <span className="bg-gradient-to-r from-[#003d9b] to-[#0c56d0] bg-clip-text text-transparent">值得付费的知识资产</span>
             </h1>
-            <p>
+            
+            <p className="text-[17px] leading-relaxed text-[#434654]">
               粘贴公开视频链接，自动完成解析、字幕或 STT 文稿、DeepSeek 摘要、思维导图和临时问答。让课程、访谈和发布会从“看过”变成“可复用”。
             </p>
-            <div className="hero-actions" aria-label="核心价值">
+            
+            <div className="flex flex-wrap gap-x-12 gap-y-6 pt-2">
               {heroMetrics.map((item) => (
-                <div className="hero-metric" key={item.label}>
-                  <strong>{item.value}</strong>
-                  <span>{item.label}</span>
+                <div className="flex flex-col gap-1" key={item.label}>
+                  <strong className="text-3xl font-extrabold tracking-tight text-[#041b3c]">{item.value}</strong>
+                  <span className="text-[13px] font-medium text-[#737685]">{item.label}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          <form className="summary-form premium-summary-form" onSubmit={onSubmit}>
-            <div className="url-row">
-              <label htmlFor="video-url">
-                <Link aria-hidden="true" size={18} />
-                视频链接
-              </label>
-              <input
-                id="video-url"
-                type="text"
-                inputMode="url"
-                placeholder="粘贴 YouTube、Bilibili、抖音或其他公开视频链接"
-                value={url}
-                onChange={(event) => onUrlChange(event.target.value)}
-                disabled={isRunning}
-              />
-              <button type="submit" disabled={isRunning}>
-                {isRunning ? <Loader2 aria-hidden="true" className="spin" size={18} /> : <Sparkles aria-hidden="true" size={18} />}
-                {isRunning ? "生成中" : "立即生成报告"}
-                {!isRunning ? <ArrowRight aria-hidden="true" size={17} /> : null}
-              </button>
-            </div>
-
-            <div className="premium-signal-grid">
-              {premiumSignals.map((item) => (
-                <div className="premium-signal" key={item.title}>
-                  {item.icon}
-                  <div>
-                    <strong>{item.title}</strong>
-                    <span>{item.text}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <fieldset className="style-grid" disabled={isRunning}>
-              <legend>选择你愿意付费保留的输出风格</legend>
-              {summaryStyles.map((item) => (
-                <label className={style === item.value ? "style-option style-option-active" : "style-option"} key={item.value}>
-                  <input
-                    type="radio"
-                    name="summary-style"
-                    value={item.value}
-                    checked={style === item.value}
-                    onChange={() => onStyleChange(item.value)}
-                  />
-                  <span>{item.label}</span>
-                  <small>{item.description}</small>
+          <div className="relative">
+            <div className="absolute -inset-1 blur-2xl opacity-20 bg-gradient-to-br from-[#0c56d0]/40 to-[#d7e2ff]/40 rounded-3xl -z-10"></div>
+            <form 
+              className="rounded-2xl border border-white/40 bg-white/70 p-6 shadow-[0_24px_56px_rgba(14,37,70,0.06)] backdrop-blur-xl lg:p-8 space-y-6 relative overflow-hidden" 
+              onSubmit={onSubmit}
+            >
+              <div className="space-y-3">
+                <label htmlFor="video-url" className="flex items-center gap-2 text-[15px] font-semibold text-[#041b3c]">
+                  <Link aria-hidden="true" size={16} className="text-[#0052cc]" />
+                  视频链接
                 </label>
-              ))}
-            </fieldset>
-
-            <label className="custom-prompt" htmlFor="custom-prompt">
-              <span>让报告更像你的专属顾问</span>
-              <textarea
-                id="custom-prompt"
-                rows={3}
-                maxLength={2000}
-                placeholder="可选，例如：请重点提炼产品策略、风险和可执行建议"
-                value={customPrompt}
-                onChange={(event) => onCustomPromptChange(event.target.value)}
-                disabled={isRunning}
-              />
-            </label>
-          </form>
-
-          <div className="hero-preview" aria-label="AI 视频总结结果预览">
-            <div className="preview-toolbar">
-              <span />
-              <span />
-              <span />
-              <strong>AI Summary Studio</strong>
-            </div>
-            <div className="preview-video">
-              <Film aria-hidden="true" size={32} />
-              <div>
-                <span>视频处理中</span>
-                <strong>行业发布会 58:24</strong>
+                <div className="relative flex flex-col sm:flex-row gap-3">
+                  <input
+                    id="video-url"
+                    type="text"
+                    inputMode="url"
+                    placeholder="粘贴 YouTube、Bilibili、抖音或其他公开视频链接"
+                    className="flex-1 w-full min-h-[48px] rounded-lg border-2 border-transparent bg-white shadow-sm ring-1 ring-[#c3c6d6]/60 px-4 text-[15px] text-[#041b3c] outline-none transition-all placeholder:text-[#737685] focus:border-[#0052cc] focus:bg-white focus:ring-[3px] focus:ring-[#0052cc]/15 disabled:cursor-not-allowed disabled:opacity-60"
+                    value={url}
+                    onChange={(event) => onUrlChange(event.target.value)}
+                    disabled={isRunning}
+                  />
+                  <button 
+                    type="submit" 
+                    disabled={isRunning}
+                    className="inline-flex min-h-[48px] sm:w-[140px] items-center justify-center gap-2 rounded-lg bg-[#0052cc] px-5 font-bold text-white shadow-[0_8px_16px_rgba(0,82,204,0.2)] transition-all hover:bg-[#003d9b] hover:shadow-[0_12px_24px_rgba(0,82,204,0.3)] hover:-translate-y-0.5 disabled:pointer-events-none disabled:opacity-60"
+                  >
+                    {isRunning ? <Loader2 aria-hidden="true" className="animate-spin" size={18} /> : <Sparkles aria-hidden="true" size={18} />}
+                    {isRunning ? "生成中" : "立即生成"}
+                  </button>
+                </div>
               </div>
-            </div>
-            <div className="preview-summary">
-              <p>一句话总结</p>
-              <strong>这不是再多一个下载器，而是一套把视频转成决策材料的工作台。</strong>
-            </div>
-            <div className="preview-bars" aria-hidden="true">
-              <span style={{ width: "92%" }} />
-              <span style={{ width: "74%" }} />
-              <span style={{ width: "86%" }} />
-            </div>
-            <div className="preview-pill-row">
-              <span>脑图已生成</span>
-              <span>问答就绪</span>
-              <span>4K 可下载</span>
-            </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                {premiumSignals.map((item) => (
+                  <div className="flex flex-col gap-1.5 rounded-lg bg-[#f9f9ff] p-3 border border-[#edf0ff]" key={item.title}>
+                    <div className="text-[#0052cc] bg-[#e8edff] w-fit p-1.5 rounded-md">{item.icon}</div>
+                    <strong className="text-[13px] pr-2 font-semibold text-[#041b3c] mt-1">{item.title}</strong>
+                    <span className="text-[12px] text-[#434654] leading-relaxed">{item.text}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="h-px w-full bg-gradient-to-r from-transparent via-[#c3c6d6]/40 to-transparent"></div>
+
+              <fieldset className="space-y-3" disabled={isRunning}>
+                <legend className="text-[14px] font-semibold text-[#041b3c] mb-3">报告输出风格</legend>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {summaryStyles.map((item) => (
+                    <label 
+                      className={`relative flex cursor-pointer flex-col gap-1 rounded-lg border p-3.5 transition-all ${
+                        style === item.value 
+                          ? "border-[#0052cc] bg-[#f9f9ff] shadow-[0_2px_8px_rgba(0,82,204,0.06)]" 
+                          : "border-[#e0e8ff] bg-white hover:border-[#c3c6d6]"
+                      } ${isRunning ? "opacity-60 cursor-not-allowed" : ""}`}
+                      key={item.value}
+                    >
+                      <input
+                        type="radio"
+                        name="summary-style"
+                        value={item.value}
+                        className="sr-only"
+                        checked={style === item.value}
+                        onChange={() => onStyleChange(item.value)}
+                      />
+                      <div className="flex items-center justify-between">
+                        <span className={`text-[14px] font-semibold ${style === item.value ? 'text-[#0052cc]' : 'text-[#041b3c]'}`}>
+                          {item.label}
+                        </span>
+                        {style === item.value && <CheckCircle2 size={16} className="text-[#0052cc]" />}
+                      </div>
+                      <small className="text-[12px] text-[#737685] mt-1 leading-relaxed">{item.description}</small>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+
+              <label className="flex flex-col gap-2 relative mt-4" htmlFor="custom-prompt">
+                <span className="text-[13px] font-medium text-[#434654]">补充定制指令（可选）</span>
+                <textarea
+                  id="custom-prompt"
+                  rows={2}
+                  maxLength={2000}
+                  placeholder="例如：请重点提炼产品策略、风险和可执行建议..."
+                  className="w-full rounded-md border border-[#c3c6d6] bg-[#f9f9ff]/50 px-3 py-2 text-[14px] text-[#041b3c] outline-none transition-all placeholder:text-[#737685]/70 focus:border-[#0052cc] focus:bg-white resize-none"
+                  value={customPrompt}
+                  onChange={(event) => onCustomPromptChange(event.target.value)}
+                  disabled={isRunning}
+                />
+              </label>
+
+              {error && (
+                <div className="flex items-start gap-2 rounded-lg bg-[#ffdad6]/60 border border-[#ffdad6] p-3 text-[13px] text-[#93000a] mt-4">
+                  <AlertCircle className="shrink-0 mt-0.5" size={16} />
+                  <p className="leading-relaxed">{error}</p>
+                </div>
+              )}
+              {notice && (
+                <div className="flex items-start gap-2 rounded-lg bg-[#e8edff] border border-[#d7e2ff] p-3 text-[13px] text-[#0040a2] mt-4">
+                  <CheckCircle2 className="shrink-0 mt-0.5" size={16} />
+                  <p className="leading-relaxed">{notice}</p>
+                </div>
+              )}
+              {partialErrors.length > 0 && (
+                <div className="flex flex-col gap-2 rounded-lg bg-[#ffddb3]/40 border border-[#ffddb3] p-3 text-[13px] text-[#624000] mt-4">
+                  {partialErrors.map((msg, idx) => (
+                    <div key={idx} className="flex items-start gap-2">
+                      <AlertCircle className="shrink-0 mt-0.5" size={16} />
+                      <p className="leading-relaxed">{msg}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </form>
           </div>
         </div>
       </section>
 
-      <section className="conversion-section" aria-labelledby="value-title">
-        <div className="section-heading">
-          <p className="eyebrow">为什么值得付费</p>
-          <h2 id="value-title">付费点不在“总结一次”，而在持续节省高价值时间</h2>
+      <section className="w-full bg-white border-y border-[#e8edff] py-20">
+        <div className="max-w-[1280px] mx-auto px-6">
+          <div className="text-center max-w-2xl mx-auto space-y-4 mb-16">
+            <h2 className="text-3xl font-bold text-[#041b3c] tracking-tight">不仅是摘要，更是认知整理框架</h2>
+            <p className="text-lg text-[#434654] leading-relaxed">为深度研究和重度内容消费者提供结构化知识管理，减少低效重复阅读。</p>
+          </div>
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            {valueCards.map((item) => (
+              <article className="group relative rounded-2xl bg-[#f9f9ff] p-8 transition-all hover:bg-white hover:shadow-[0_24px_48px_rgba(14,37,70,0.06)] border border-transparent hover:border-[#d7e2ff]" key={item.title}>
+                <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-[#e8edff] text-[#0052cc] transition-transform group-hover:scale-110 group-hover:bg-[#0052cc] group-hover:text-white">
+                  {item.icon}
+                </div>
+                <h3 className="mb-3 text-[19px] font-bold text-[#041b3c]">{item.title}</h3>
+                <p className="text-[15px] leading-relaxed text-[#434654]">{item.text}</p>
+              </article>
+            ))}
+          </div>
         </div>
-        <div className="value-card-grid">
-          {valueCards.map((item) => (
-            <article className="value-card" key={item.title}>
-              <div className="value-icon">{item.icon}</div>
-              <h3>{item.title}</h3>
-              <p>{item.text}</p>
-            </article>
+      </section>
+
+      <section className="w-full max-w-[800px] mx-auto px-6 py-20">
+        <div className="flex items-center gap-3 mb-10 justify-center">
+          <HelpCircle aria-hidden="true" size={28} className="text-[#0052cc]" />
+          <h2 className="text-3xl font-bold text-[#041b3c] tracking-tight">常见问题</h2>
+        </div>
+        <div className="space-y-6">
+          {[
+            {
+              q: "支持哪些平台的视频？",
+              a: "本地工具默认使用 yt-dlp 支持大部分公开视频（如 YouTube）。已针对 Bilibili（部分公开画质）、抖音提供专用解析线路；无字幕视频将自动静默使用 StepAudio 转写。"
+            },
+            {
+              q: "字幕或转写不准怎么办？",
+              a: "受限于公开网络抓取策略。我们会首选原视频自带的无障碍字幕；若无字幕，转而使用音轨通过 STT 生成，请确保音频清晰，生成可能耗时数十秒。"
+            },
+            {
+              q: "生成结果需要会员吗？",
+              a: "当前为本地 MVP 方案，依靠你配置在环境变量的 API Key 进行请求，只要余额足够即可不受次数限制。"
+            },
+            {
+              q: "隐私和历史记录？",
+              a: "本地不设计数据库，任务运行在内存并在后台到期销毁。每次刷新页面等于全部归零，请通过“一键复制”保存你的报告和文稿。"
+            }
+          ].map((faq, index) => (
+            <div key={index} className="rounded-2xl border border-[#e8edff] bg-white p-6 md:p-8">
+              <h3 className="text-[17px] font-bold text-[#041b3c] mb-2">{faq.q}</h3>
+              <p className="text-[15px] leading-relaxed text-[#434654]">{faq.a}</p>
+            </div>
           ))}
         </div>
       </section>
-
-      <section className="pricing-section" aria-labelledby="pricing-title">
-        <div className="pricing-banner">
-          <div>
-            <p className="eyebrow">
-              <Zap aria-hidden="true" size={15} />
-              Pro 转化锚点
-            </p>
-            <h2 id="pricing-title">把免费体验设计成“试一次就想长期用”</h2>
-          </div>
-          <button type="button" className="primary-button" onClick={() => document.getElementById("video-url")?.focus()}>
-            <Sparkles aria-hidden="true" size={16} />
-            先生成一份报告
-          </button>
-        </div>
-
-        <div className="plan-table" aria-label="免费版和 Pro 版权益对比">
-          <div className="plan-head">
-            <strong>权益</strong>
-            <strong>免费体验</strong>
-            <strong>
-              <Crown aria-hidden="true" size={16} />
-              Pro 会员
-            </strong>
-          </div>
-          {planRows.map(([feature, free, pro]) => (
-            <div className="plan-row" key={feature}>
-              <span>{feature}</span>
-              <span>{free}</span>
-              <span>{pro}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="testimonial-section" aria-labelledby="testimonial-title">
-        <div className="section-heading">
-          <p className="eyebrow">付费前的关键心理</p>
-          <h2 id="testimonial-title">用户需要看到：它能替我完成原本很贵的脑力劳动</h2>
-        </div>
-        <div className="testimonial-grid">
-          <article>
-            <div className="star-row" aria-label="五星评价">
-              {[1, 2, 3, 4, 5].map((item) => <Star aria-hidden="true" size={16} fill="currentColor" key={item} />)}
-            </div>
-            <p>“以前看竞品发布会要边看边记，现在直接拿到摘要、脑图和追问入口，省下来的时间远超过会员费。”</p>
-            <strong>产品经理 · 高频视频调研</strong>
-          </article>
-          <article>
-            <div className="star-row" aria-label="五星评价">
-              {[1, 2, 3, 4, 5].map((item) => <Star aria-hidden="true" size={16} fill="currentColor" key={item} />)}
-            </div>
-            <p>“课程视频不再只收藏吃灰，报告可以直接变成复习材料，脑图特别适合考前回看。”</p>
-            <strong>研究生 · 课程与讲座学习</strong>
-          </article>
-        </div>
-      </section>
-
-      <StatusMessages error={error} notice={notice} partialErrors={partialErrors} />
     </>
   );
-}
-
-function SummaryPage({
+}function SummaryPage({
   hasResultSurface,
   video,
   currentStage,

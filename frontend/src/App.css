@@ -193,12 +193,6 @@ a {
   background: var(--primary-dark);
 }
 
-.workspace-hero {
-  width: min(1180px, calc(100% - 48px));
-  margin: 0 auto;
-  padding: 78px 0 34px;
-}
-
 .premium-hero {
   position: relative;
   padding-top: 62px;
@@ -218,17 +212,6 @@ a {
   border-radius: 8px;
 }
 
-.premium-hero-grid {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.74fr);
-  grid-template-areas:
-    "copy preview"
-    "form form";
-  gap: 42px;
-  align-items: center;
-}
-
 .premium-hero .hero-copy {
   grid-area: copy;
 }
@@ -239,14 +222,6 @@ a {
 
 .premium-hero .premium-summary-form {
   grid-area: form;
-}
-
-.workspace-hero-compact {
-  display: grid;
-  grid-template-columns: minmax(240px, 0.42fr) minmax(0, 0.58fr);
-  gap: 28px;
-  align-items: start;
-  padding-top: 42px;
 }
 
 .hero-copy {
@@ -263,24 +238,12 @@ a {
   font-weight: 800;
 }
 
-.hero-copy h1 {
-  margin: 0;
-  color: var(--hero-ink);
-  font-size: clamp(42px, 6vw, 78px);
-  line-height: 0.98;
-  letter-spacing: 0;
-}
-
 .hero-copy h1 span {
   display: block;
   color: var(--primary);
 }
 
-.workspace-hero-compact .hero-copy h1 {
-  font-size: clamp(30px, 3vw, 40px);
-}
-
-.hero-copy > p {
+.workspace-hero-compact .hero-copy > p {
   max-width: 700px;
   margin: 22px 0 0;
   color: var(--muted);
@@ -1546,14 +1509,7 @@ a {
     grid-template-columns: 1fr;
   }
 
-  .premium-hero-grid {
-    grid-template-areas:
-      "copy"
-      "form"
-      "preview";
-  }
-
-  .hero-preview {
+    .hero-preview {
     max-width: 680px;
   }
 
@@ -1593,15 +1549,7 @@ a {
     width: min(100% - 32px, 680px);
   }
 
-  .workspace-hero {
-    padding-top: 44px;
-  }
-
-  .hero-copy h1 {
-    font-size: 36px;
-  }
-
-  .hero-copy > p {
+      .hero-copy > p {
     font-size: 15px;
   }
 
