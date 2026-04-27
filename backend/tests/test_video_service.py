@@ -301,6 +301,10 @@ def test_bilibili_build_media_from_page_ignores_non_assignment_playinfo_referenc
 
 
 def test_bilibili_fetch_subtitle_result_maps_public_subtitles():
+    from backend.app.providers.bilibili_wbi import _clear_wbi_cache_for_tests
+
+    _clear_wbi_cache_for_tests()
+
     initial_state = {
         "videoData": {
             "bvid": "BV1TaqYBcEJc",
@@ -309,7 +313,20 @@ def test_bilibili_fetch_subtitle_result_maps_public_subtitles():
     }
 
     def handler(request: httpx.Request) -> httpx.Response:
-        if request.url.path == "/x/player/v2":
+        if request.url.path == "/x/web-interface/nav":
+            return httpx.Response(
+                200,
+                json={
+                    "code": 0,
+                    "data": {
+                        "wbi_img": {
+                            "img_url": "https://i0.hdslb.com/bfs/wbi/7cd084941338484aae1ad9425b84077c.png",
+                            "sub_url": "https://i0.hdslb.com/bfs/wbi/4932caff0ff746eab6f01bf08b70ac45.png",
+                        }
+                    },
+                },
+            )
+        if request.url.path == "/x/player/wbi/v2":
             return httpx.Response(
                 200,
                 json={
@@ -359,8 +376,14 @@ def test_bilibili_fetch_subtitle_result_maps_public_subtitles():
     assert subtitle.cues[0].end == 1.5
     assert subtitle.cues[0].text == "第一句"
 
+    _clear_wbi_cache_for_tests()
+
 
 def test_bilibili_fetch_subtitle_result_handles_login_required_empty_list():
+    from backend.app.providers.bilibili_wbi import _clear_wbi_cache_for_tests
+
+    _clear_wbi_cache_for_tests()
+
     initial_state = {
         "videoData": {
             "bvid": "BV1TaqYBcEJc",
@@ -369,6 +392,19 @@ def test_bilibili_fetch_subtitle_result_handles_login_required_empty_list():
     }
 
     def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/x/web-interface/nav":
+            return httpx.Response(
+                200,
+                json={
+                    "code": 0,
+                    "data": {
+                        "wbi_img": {
+                            "img_url": "https://i0.hdslb.com/bfs/wbi/7cd084941338484aae1ad9425b84077c.png",
+                            "sub_url": "https://i0.hdslb.com/bfs/wbi/4932caff0ff746eab6f01bf08b70ac45.png",
+                        }
+                    },
+                },
+            )
         return httpx.Response(
             200,
             json={
@@ -391,8 +427,14 @@ def test_bilibili_fetch_subtitle_result_handles_login_required_empty_list():
     assert result.subtitles == []
     assert result.message == "当前视频字幕需要登录后访问。"
 
+    _clear_wbi_cache_for_tests()
+
 
 def test_bilibili_fetch_subtitle_result_handles_invalid_subtitle_file():
+    from backend.app.providers.bilibili_wbi import _clear_wbi_cache_for_tests
+
+    _clear_wbi_cache_for_tests()
+
     initial_state = {
         "videoData": {
             "bvid": "BV1TaqYBcEJc",
@@ -401,7 +443,20 @@ def test_bilibili_fetch_subtitle_result_handles_invalid_subtitle_file():
     }
 
     def handler(request: httpx.Request) -> httpx.Response:
-        if request.url.path == "/x/player/v2":
+        if request.url.path == "/x/web-interface/nav":
+            return httpx.Response(
+                200,
+                json={
+                    "code": 0,
+                    "data": {
+                        "wbi_img": {
+                            "img_url": "https://i0.hdslb.com/bfs/wbi/7cd084941338484aae1ad9425b84077c.png",
+                            "sub_url": "https://i0.hdslb.com/bfs/wbi/4932caff0ff746eab6f01bf08b70ac45.png",
+                        }
+                    },
+                },
+            )
+        if request.url.path == "/x/player/wbi/v2":
             return httpx.Response(
                 200,
                 json={
@@ -432,6 +487,8 @@ def test_bilibili_fetch_subtitle_result_handles_invalid_subtitle_file():
     assert result.status == "unavailable"
     assert result.subtitles == []
     assert result.message == "当前视频字幕文件不可访问或格式异常。"
+
+    _clear_wbi_cache_for_tests()
 
 
 def test_bilibili_extract_video_info_uses_bilibili_provider(monkeypatch):

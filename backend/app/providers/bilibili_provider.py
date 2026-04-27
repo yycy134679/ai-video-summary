@@ -15,6 +15,7 @@ import httpx
 
 from backend.app.models import Quality, QualityOption, SubtitleCue, SubtitleInfo, SubtitleStatus, VideoInfo
 from backend.app.providers.base import DownloadResult, MissingFfmpegError, VideoServiceError
+from backend.app.providers.bilibili_wbi import get_wbi_keys, sign_params
 
 
 class BilibiliProviderError(VideoServiceError):
@@ -68,6 +69,13 @@ DEFAULT_HEADERS = {
     "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
 }
 VIDEO_QUALITIES: tuple[Quality, ...] = ("source", "4k", "1080p", "720p")
+
+_DEVICE_FINGERPRINT_PARAMS = {
+    "dm_img_list": "[]",
+    "dm_img_str": "V2ViR0wgMS4wIChPcGVuR0wgRVMgMi4wIENocm9taXVtKQ",
+    "dm_cover_img_str": "QU5HTEUgKE5WSURJQSwgTlZJRElBIEdlRm9yY2UgUlRYIDQwNjAgTGFwdG9wIEdQVSAoMHgwMDAwMjhFMCkgRGlyZWN0M0QxMSB2c181XzAgcHNfNV8wLCBEM0QxMSlHb29nbGUgSW5jLiAoTlZJRElBKQ",
+    "dm_img_inter": '{"ds":[],"wh":[5231,6067,75],"of":[475,950,475]}',
+}
 
 
 def is_bilibili_input(value: str) -> bool:
@@ -351,7 +359,7 @@ def _fetch_subtitle_result(
         return BilibiliSubtitleResult([], "unavailable", "页面中缺少获取字幕所需的 bvid 或 cid。")
 
     try:
-        player_data = _fetch_player_v2_data(client, webpage_url, bvid, cid)
+        player_data = _fetch_player_wbi_v2_data(client, webpage_url, bvid, cid)
         subtitle_data = player_data.get("subtitle") if isinstance(player_data.get("subtitle"), dict) else {}
         subtitle_items = _as_list(subtitle_data.get("subtitles"))
         if not subtitle_items:
@@ -390,15 +398,27 @@ def _fetch_subtitle_result(
     return BilibiliSubtitleResult(subtitles, "available", None)
 
 
-def _fetch_player_v2_data(
+def _fetch_player_wbi_v2_data(
     client: httpx.Client,
     webpage_url: str,
     bvid: str,
     cid: int,
 ) -> dict[str, Any]:
+    try:
+        img_key, sub_key = get_wbi_keys(client)
+    except VideoServiceError:
+        return {}
+
+    params: dict[str, Any] = {
+        "bvid": bvid,
+        "cid": cid,
+        **_DEVICE_FINGERPRINT_PARAMS,
+    }
+    signed_query = sign_params(params, img_key, sub_key)
+    url = f"https://api.bilibili.com/x/player/wbi/v2?{signed_query}"
+
     response = client.get(
-        "https://api.bilibili.com/x/player/v2",
-        params={"bvid": bvid, "cid": cid},
+        url,
         headers={
             **DEFAULT_HEADERS,
             "Accept": "application/json,*/*",
