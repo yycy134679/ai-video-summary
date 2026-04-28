@@ -23,6 +23,8 @@ export function SummaryPanel({
     return <EmptyPanel icon={<Sparkles size={22} />} text="摘要生成后会显示在这里。" />;
   }
 
+  const displayMarkdown = summary?.oneSentence ? removeOneSentenceSection(markdown) : markdown;
+
   return (
     <article className="summary-content">
       {summary?.oneSentence ? (
@@ -43,7 +45,7 @@ export function SummaryPanel({
             }
           }}
         >
-          {markdown}
+          {displayMarkdown}
         </Markdown>
       </div>
       {isRunning ? (
@@ -54,6 +56,10 @@ export function SummaryPanel({
       ) : null}
     </article>
   );
+}
+
+function removeOneSentenceSection(markdown: string): string {
+  return markdown.replace(/^##\s+一句话总结\s*\n[\s\S]*?(?=^##\s+)/m, "").trimStart();
 }
 
 function SummaryProgressState({ currentStage }: { currentStage: SummaryStage | null }) {
