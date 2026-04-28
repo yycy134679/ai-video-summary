@@ -16,6 +16,14 @@ export const BRANCH_COLORS: BranchColor[] = [
   { main: "#d987b8", muted: "#e2a5ca" },
 ];
 
+export interface MindMapTextLimits {
+  rootTitle: number;
+  branchTitle: number;
+  leafTitle: number;
+  prefix: number;
+  summary: number;
+}
+
 export interface MindMapLayoutOptions {
   rootCircleX: number;
   depthGap: number;
@@ -23,6 +31,7 @@ export interface MindMapLayoutOptions {
   topPadding: number;
   rightPadding: number;
   bottomPadding: number;
+  textLimits: MindMapTextLimits;
 }
 
 export interface MindMapLayoutNode {
@@ -79,7 +88,7 @@ export function getMindMapLayout(
   let maxX = 0;
 
   function flatten(item: LayoutDraft) {
-    const labelWidth = estimateLabelWidth(item.node, item.children.length > 0, item.depth);
+    const labelWidth = estimateLabelWidth(item.node, item.children.length > 0, item.depth, options.textLimits);
     const x = item.depth === 0
       ? options.rootCircleX
       : options.rootCircleX + item.depth * options.depthGap;
@@ -161,14 +170,39 @@ function assignColorToSubtree(
   node.children.forEach((child) => assignColorToSubtree(child, color, map));
 }
 
-function estimateLabelWidth(node: MindMapNode, hasVisibleChildren: boolean, depth: number): number {
+function estimateLabelWidth(
+  node: MindMapNode,
+  hasVisibleChildren: boolean,
+  depth: number,
+  textLimits: MindMapTextLimits
+): number {
   if (depth === 0) {
-    return Math.min(300, Math.max(160, Array.from(node.title).length * 15 + 24));
+    return Math.max(160, estimateTextWidth(truncateText(node.title, textLimits.rootTitle), 16) + 24);
   }
 
-  const titleLength = Array.from(node.title).length;
-  const summaryLength = !hasVisibleChildren && node.summary ? Math.min(Array.from(node.summary).length, 28) : 0;
-  return Math.min(360, Math.max(92, titleLength * 14 + summaryLength * 9 + 28));
+  const titleParts = parseTitleParts(node.title);
+  const titleText = truncateText(titleParts.rest, hasVisibleChildren ? textLimits.branchTitle : textLimits.leafTitle);
+  const prefixText = titleParts.prefix ? truncateText(titleParts.prefix, textLimits.prefix) : null;
+  const summaryText = !hasVisibleChildren && node.summary ? truncateText(node.summary, textLimits.summary) : "";
+  const labelText = prefixText
+    ? `${prefixText}：${titleText}${summaryText ? `  ${summaryText}` : ""}`
+    : `${titleText}${summaryText ? `：${summaryText}` : ""}`;
+  return Math.max(92, estimateTextWidth(labelText, depth === 1 ? 15 : 14) + 36);
+}
+
+function estimateTextWidth(value: string, fontSize: number): number {
+  return Array.from(value).reduce((width, char) => {
+    if (/[^\x00-\xff]/.test(char)) {
+      return width + fontSize;
+    }
+    if (/[A-Z0-9]/.test(char)) {
+      return width + fontSize * 0.62;
+    }
+    if (/\s/.test(char)) {
+      return width + fontSize * 0.35;
+    }
+    return width + fontSize * 0.5;
+  }, 0);
 }
 
 export function collectNodeIds(root: MindMapNode): string[] {

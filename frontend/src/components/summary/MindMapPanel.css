@@ -4,11 +4,33 @@
   min-width: 0;
 }
 
+.mindmap-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.mindmap-toolbar-copy {
+  min-width: 0;
+  color: #5d6678;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.mindmap-toolbar-copy strong {
+  display: block;
+  color: #071b3a;
+  font-size: 15px;
+  font-weight: 800;
+}
+
 .mindmap-actions {
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 10px;
-  margin-bottom: 12px;
 }
 
 .mindmap-canvas {
@@ -17,6 +39,29 @@
   background: #fbfdff;
   border: 1px solid #d7e0ee;
   border-radius: var(--radius-3xl);
+}
+
+.mindmap-panel-maximized {
+  position: fixed;
+  inset: 20px;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  padding: 22px;
+  background: #f8fbff;
+  border: 1px solid rgba(199, 208, 223, 0.9);
+  border-radius: 24px;
+  box-shadow: 0 24px 70px rgba(14, 37, 70, 0.18);
+}
+
+.mindmap-panel-maximized .mindmap-toolbar {
+  flex: 0 0 auto;
+  margin-bottom: 14px;
+}
+
+.mindmap-panel-maximized .mindmap-canvas {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .mindmap-canvas svg {
@@ -46,4 +91,21 @@
 
 .mindmap-branch-node[role="button"]:hover .mindmap-toggle circle {
   stroke-width: 2.4px;
+}
+
+@media (max-width: 720px) {
+  .mindmap-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .mindmap-actions {
+    justify-content: flex-start;
+  }
+
+  .mindmap-panel-maximized {
+    inset: 10px;
+    padding: 14px;
+    border-radius: 18px;
+  }
 }

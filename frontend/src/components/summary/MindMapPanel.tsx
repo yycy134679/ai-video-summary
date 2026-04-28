@@ -1,11 +1,27 @@
-import { Map as MapIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Maximize2, Minimize2, Map as MapIcon } from "lucide-react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { MindMapNode } from "../../types";
 import { EmptyPanel } from "../ui/EmptyPanel";
 import { Button } from "../ui/Button";
 import { exportMindMapPng, exportMindMapSvg } from "../../utils/mindmapExport";
-import { collectNodeIds, getMindMapLayout, parseTitleParts, truncateText } from "../../utils/mindmap";
+import { collectNodeIds, getMindMapLayout, parseTitleParts, truncateText, type MindMapTextLimits } from "../../utils/mindmap";
 import "./MindMapPanel.css";
+
+const COMPACT_TEXT_LIMITS: MindMapTextLimits = {
+  rootTitle: 24,
+  branchTitle: 18,
+  leafTitle: 24,
+  prefix: 9,
+  summary: 30
+};
+
+const MAXIMIZED_TEXT_LIMITS: MindMapTextLimits = {
+  rootTitle: 80,
+  branchTitle: 64,
+  leafTitle: 72,
+  prefix: 24,
+  summary: 120
+};
 
 export function MindMapPanel({
   mindmap,
@@ -17,34 +33,84 @@ export function MindMapPanel({
   isRunning: boolean;
 }) {
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const contentRef = useRef<SVGGElement | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [measuredSize, setMeasuredSize] = useState<{ width: number; height: number } | null>(null);
+  const [isMaximized, setIsMaximized] = useState(false);
 
   useEffect(() => {
     if (!mindmap) {
       setExpandedIds(new Set());
+      setIsMaximized(false);
       return;
     }
     setExpandedIds(new Set(collectNodeIds(mindmap)));
+    setMeasuredSize(null);
   }, [mindmap]);
 
-  if (!mindmap) {
+  useEffect(() => {
+    setMeasuredSize(null);
+    if (!isMaximized) {
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsMaximized(false);
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isMaximized]);
+
+  const textLimits = useMemo(() => isMaximized ? MAXIMIZED_TEXT_LIMITS : COMPACT_TEXT_LIMITS, [isMaximized]);
+  const layout = useMemo(() => {
+    if (!mindmap) {
+      return null;
+    }
+
+    return getMindMapLayout(mindmap, expandedIds, {
+      rootCircleX: isMaximized ? 360 : 320,
+      depthGap: isMaximized ? 520 : 300,
+      leafGap: isMaximized ? 66 : 52,
+      topPadding: 70,
+      rightPadding: isMaximized ? 160 : 96,
+      bottomPadding: 90,
+      textLimits
+    });
+  }, [mindmap, expandedIds, isMaximized, textLimits]);
+
+  useLayoutEffect(() => {
+    const content = contentRef.current;
+    if (!content || !layout) {
+      return;
+    }
+
+    const bbox = content.getBBox();
+    const width = Math.ceil(Math.max(layout.width, bbox.x + bbox.width + 32));
+    const height = Math.ceil(Math.max(layout.height, bbox.y + bbox.height + 32));
+
+    setMeasuredSize((current) => {
+      if (current?.width === width && current.height === height) {
+        return current;
+      }
+      return { width, height };
+    });
+  }, [layout]);
+
+  if (!mindmap || !layout) {
     return <EmptyPanel icon={<MapIcon size={22} />} text={isRunning ? "正在生成思维导图..." : "思维导图生成后会显示在这里。"} isLoading={isRunning} />;
   }
 
-  const layout = getMindMapLayout(mindmap, expandedIds, {
-    rootCircleX: 320,
-    depthGap: 300,
-    leafGap: 52,
-    topPadding: 70,
-    rightPadding: 96,
-    bottomPadding: 90
-  });
+  const svgSize = measuredSize ?? { width: layout.width, height: layout.height };
   const nodePositions = new Map(layout.nodes.map((item) => [item.node.id, item]));
 
   function toggleNode(node: MindMapNode) {
     if (!node.children.length) {
       return;
     }
+    setMeasuredSize(null);
     setExpandedIds((current) => {
       const next = new Set(current);
       if (next.has(node.id)) {
@@ -57,18 +123,38 @@ export function MindMapPanel({
   }
 
   return (
-    <div className="mindmap-panel">
-      <div className="mindmap-actions">
-        <Button variant="soft" size="compact" onClick={() => exportMindMapSvg(svgRef.current, videoTitle)}>
-          导出 SVG
-        </Button>
-        <Button variant="soft" size="compact" onClick={() => exportMindMapPng(svgRef.current, videoTitle)}>
-          导出 PNG
-        </Button>
+    <div className={isMaximized ? "mindmap-panel mindmap-panel-maximized" : "mindmap-panel"}>
+      <div className="mindmap-toolbar">
+        <div className="mindmap-toolbar-copy">
+          {isMaximized ? (
+            <>
+              <strong>最大化查看</strong>
+              <span>按 Esc 退出，支持横向和纵向滚动。</span>
+            </>
+          ) : null}
+        </div>
+        <div className="mindmap-actions">
+          <Button
+            variant="soft"
+            size="compact"
+            onClick={() => setIsMaximized((current) => !current)}
+            aria-pressed={isMaximized}
+          >
+            {isMaximized ? <Minimize2 aria-hidden="true" size={15} /> : <Maximize2 aria-hidden="true" size={15} />}
+            {isMaximized ? "退出最大化" : "最大化查看"}
+          </Button>
+          <Button variant="soft" size="compact" onClick={() => exportMindMapSvg(svgRef.current, videoTitle)}>
+            导出 SVG
+          </Button>
+          <Button variant="soft" size="compact" onClick={() => exportMindMapPng(svgRef.current, videoTitle)}>
+            导出 PNG
+          </Button>
+        </div>
       </div>
       <div className="mindmap-canvas">
-        <svg ref={svgRef} viewBox={`0 0 ${layout.width} ${layout.height}`} width={layout.width} height={layout.height} role="img" aria-label="视频思维导图">
-          <rect width={layout.width} height={layout.height} rx="18" fill="#fbfdff" />
+        <svg ref={svgRef} viewBox={`0 0 ${svgSize.width} ${svgSize.height}`} width={svgSize.width} height={svgSize.height} role="img" aria-label="视频思维导图">
+          <rect width={svgSize.width} height={svgSize.height} rx="18" fill="#fbfdff" />
+          <g ref={contentRef}>
           {layout.nodes.map((item) => {
             const parent = item.parentId ? nodePositions.get(item.parentId) : null;
             if (!parent) {
@@ -95,11 +181,11 @@ export function MindMapPanel({
             const isRoot = item.depth === 0;
             const color = item.branchColor;
             const titleParts = parseTitleParts(item.node.title);
-            const titleLimit = isRoot ? 24 : item.hasVisibleChildren ? 18 : 24;
+            const titleLimit = isRoot ? textLimits.rootTitle : item.hasVisibleChildren ? textLimits.branchTitle : textLimits.leafTitle;
             const titleText = truncateText(titleParts.rest, titleLimit);
-            const prefixText = titleParts.prefix ? truncateText(titleParts.prefix, 9) : null;
+            const prefixText = titleParts.prefix ? truncateText(titleParts.prefix, textLimits.prefix) : null;
             const showSummary = !isRoot && !item.hasVisibleChildren && Boolean(item.node.summary);
-            const summaryText = showSummary ? truncateText(item.node.summary!, 30) : "";
+            const summaryText = showSummary ? truncateText(item.node.summary!, textLimits.summary) : "";
             const lineColor = isRoot ? "#4b8ee8" : (color?.main ?? "#8aa6c8");
             const textColor = isRoot ? "#6b7280" : "#6f7888";
             const circleFill = "#fbfdff";
@@ -150,7 +236,7 @@ export function MindMapPanel({
                       <tspan>{titleText}</tspan>
                     </>
                   ) : (
-                    <tspan>{isRoot ? truncateText(item.node.title, 24) : titleText}</tspan>
+                    <tspan>{isRoot ? truncateText(item.node.title, textLimits.rootTitle) : titleText}</tspan>
                   )}
                   {summaryText ? (
                     <tspan fill="#8b94a3" fontWeight="400">
@@ -174,6 +260,7 @@ export function MindMapPanel({
               </g>
             );
           })}
+          </g>
         </svg>
       </div>
     </div>
