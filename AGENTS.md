@@ -2,29 +2,32 @@
 
 ## 项目概览
 
-这是“AI 视频摘要助手”的本地自用 MVP。当前核心流程是：粘贴公开视频链接，解析视频信息，优先读取公开字幕；无公开字幕或字幕解析失败时使用 StepAudio 2.5 ASR 生成文稿，再调用 DeepSeek 生成结构化摘要、思维导图和临时问答会话。
+这是"AI 视频摘要助手"的本地自用 MVP。核心流程：粘贴公开视频链接 → 解析视频信息 → 优先读取公开字幕 → 无字幕时使用 StepAudio 2.5 ASR 生成文稿 → 调用 DeepSeek 生成结构化摘要、思维导图和临时问答会话。
 
-暂不包含账号、会员、数据库、多用户队列、历史记录或公网部署安全策略。
+**暂不包含**：账号、会员、数据库、多用户队列、历史记录、公网部署安全策略。
 
-- 后端：`FastAPI + yt-dlp + httpx + ffmpeg + StepAudio 2.5 ASR + DeepSeek`，入口在 `backend/app/main.py`。
-- 前端：`React + Vite + TypeScript + Tailwind CSS v4 + lucide-react`，入口在 `frontend/src/App.tsx`。
-- 存储：无数据库；下载文件使用临时目录，请求结束后清理；转写任务和总结问答会话只保存在后端内存中并按 TTL 清理。
-- 平台 Provider：B 站和抖音有专用 Provider，其他平台优先走 `yt-dlp`。
-- 关键文档：`README.md`、`docs/方案设计.md`、`docs/AI视频总结功能方案.md`、`docs/StepAudio-2.5-ASR-STT接入PRD.md`、`docs/B站解析接入记录.md`、`docs/PRD.md`、`docs/需求分析.md`、`DESIGN/DESIGN.md`、`DESIGN/首页.html`。
+| 层 | 技术栈 | 入口 |
+|---|---|---|
+| 后端 | FastAPI + yt-dlp + httpx + ffmpeg + StepAudio 2.5 ASR + DeepSeek | `backend/app/main.py` |
+| 前端 | React + Vite + TypeScript + Tailwind CSS v4 + lucide-react | `frontend/src/App.tsx` |
+| 存储 | 无数据库 — 下载临时目录、内存转写任务、内存问答会话（均按 TTL 清理） | — |
+| Provider | B 站、抖音专用 Provider，其他平台走 yt-dlp | `backend/app/providers/` |
 
-继续开发前先阅读 `README.md` 和 `docs/方案设计.md`；涉及 AI 总结、STT、SSE、问答会话或提示词时再读 `docs/AI视频总结功能方案.md` 与 `docs/StepAudio-2.5-ASR-STT接入PRD.md`；涉及 B 站解析、清晰度、字幕、封面或第三方解析 API 取舍时读取 `docs/B站解析接入记录.md`；涉及产品边界或视觉改动时读取 PRD、需求分析和设计稿。
+**关键文档**：`README.md`、`docs/方案设计.md`、`docs/AI视频总结功能方案.md`、`docs/StepAudio-2.5-ASR-STT接入PRD.md`、`docs/B站解析接入记录.md`、`docs/PRD.md`、`docs/需求分析.md`、`DESIGN.md`、`PRODUCT.md`、`DESIGN/首页.html`。
 
-## 本地环境
+涉及相应模块改动前先阅读对应文档；涉及 B 站解析、字幕、封面时必读 `docs/B站解析接入记录.md`。
 
-需要本机已有：
+## 环境搭建
 
-- Python 3.11+
+### 前置依赖
+
+- Python 3.11+（含 venv）
 - Node.js 20+
-- ffmpeg
-- StepFun API Key：自动 STT 需要，配置为 `STEP_API_KEY`
-- DeepSeek API Key：AI 总结和问答需要，配置为 `DEEPSEEK_API_KEY`
+- ffmpeg（音频抽取、DASH 流合并、音频分段）
+- StepFun API Key（ASR 自动转写需要）
+- DeepSeek API Key（AI 摘要和问答需要）
 
-后端依赖安装：
+### 后端安装
 
 ```bash
 python3 -m venv .venv
@@ -33,9 +36,16 @@ pip install -r backend/requirements.txt
 cp .env.example .env
 ```
 
-只把真实密钥写入本地 `.env`，不要读取、打印、提交或暴露 `.env` 内容。未配置 `STEP_API_KEY` 不影响视频解析和下载，但自动转写会失败并返回清晰错误；未配置 `DEEPSEEK_API_KEY` 不影响解析、转写和下载，但总结流式接口不可用。
+编辑 `.env`，填入密钥：
 
-前端依赖安装：
+```env
+STEP_API_KEY=sk-...
+DEEPSEEK_API_KEY=sk-...
+```
+
+> 不读取、不打印、不提交 `.env` 内容。未配置 `STEP_API_KEY` 不影响视频解析和下载，但自动转写会失败；未配置 `DEEPSEEK_API_KEY` 不影响解析、转写和下载，但总结流式接口不可用。
+
+### 前端安装
 
 ```bash
 cd frontend
@@ -44,159 +54,229 @@ npm install
 
 ## 开发命令
 
-从仓库根目录启动后端：
+### 启动后端
 
 ```bash
 source .venv/bin/activate
 uvicorn backend.app.main:app --reload
 ```
 
-后端默认地址是 `http://127.0.0.1:8000`，健康检查是：
+后端默认地址 `http://127.0.0.1:8000`。
 
-```bash
-curl http://127.0.0.1:8000/api/health
-```
-
-健康检查返回 `ffmpegAvailable`、`sttAvailable` 和 `deepseekAvailable`。排查 AI 总结链路前先确认这三个状态。
-
-启动前端：
+### 启动前端
 
 ```bash
 cd frontend
 npm run dev
 ```
 
-前端默认地址是 `http://127.0.0.1:5173`，Vite 会把 `/api` 代理到 `http://127.0.0.1:8000`。
+前端默认地址 `http://127.0.0.1:5173`，Vite 将 `/api` 代理到 `http://127.0.0.1:8000`。
 
-生产构建前端：
+> 端口冲突时先用 `lsof` / `ps` 确认占用来源，不要盲目停止其他项目。优先改用备用端口并同步检查 Vite 代理目标。
+
+### 健康检查
+
+```bash
+curl http://127.0.0.1:8000/api/health
+```
+
+返回 `ffmpegAvailable`、`sttAvailable`、`deepseekAvailable`。排查 AI 总结链路前先确认这三个状态。
+
+### 生产构建
 
 ```bash
 cd frontend
-npm run build
+npm run build        # tsc 类型检查 + vite build
+npm run preview      # 预览构建产物
 ```
-
-预览前端构建：
-
-```bash
-cd frontend
-npm run preview
-```
-
-如果默认端口已被其他本地项目占用，先用 `lsof` / `ps` 确认占用来源。不要盲目停止其他项目；优先改用备用端口并同步检查 Vite 代理目标。
 
 ## 接口与主流程
 
-- `GET /api/health`：返回后端状态、ffmpeg、STT 和 DeepSeek 可用性。
-- `POST /api/videos/parse`：解析公开视频链接，返回视频信息、下载档位、公开字幕状态；无字幕时会自动创建内存转写任务。
-- `GET /api/videos/download?url=...&quality=...`：按 `source`、`4k`、`1080p`、`720p` 或 `audio` 下载。
-- `POST /api/transcripts`：手动创建视频转写任务。
-- `GET /api/transcripts/{taskId}`：查询转写任务状态和文稿结果。
-- `POST /api/summaries/stream`：使用 SSE 流式返回阶段进度、视频信息、文稿、摘要增量、摘要完成、思维导图、问答会话和错误事件。
-- `POST /api/summaries/{sessionId}/questions/stream`：基于当前视频文稿和摘要进行临时连续问答，使用 SSE 流式返回回答。
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `GET` | `/api/health` | 后端状态、ffmpeg/STT/DeepSeek 可用性 |
+| `POST` | `/api/videos/parse` | 解析视频信息、下载档位、字幕状态 |
+| `GET` | `/api/videos/download?url=&quality=` | 按 `source`/`4k`/`1080p`/`720p`/`audio` 下载 |
+| `POST` | `/api/transcripts` | 手动创建转写任务 |
+| `GET` | `/api/transcripts/{taskId}` | 查询转写任务状态和文稿 |
+| `POST` | `/api/summaries/stream` | SSE 流：阶段进度、视频信息、文稿、摘要增量、摘要完成、思维导图、问答会话 |
+| `POST` | `/api/summaries/{sessionId}/questions/stream` | SSE 流：基于文稿和摘要的连续追问 |
 
-AI 总结流程应保持“字幕优先、STT 兜底、摘要可用优先”的降级策略：思维导图或问答准备失败时，摘要和原文稿仍应尽量可用；只有视频解析、文稿获取或 DeepSeek 摘要主体失败时才中断主流程。
+**降级策略**：字幕优先 → STT 兜底 → 摘要可用优先。思维导图或问答失败时不丢弃已有摘要或文稿；只有视频解析、文稿获取或 DeepSeek 摘要主体失败时才中断主流程。
 
-## 测试与验证
+SSE 事件类型：`stage`、`video`、`transcript`、`summary_delta`、`summary_done`、`mindmap_done`、`qa_ready`、`partial_error`、`fatal_error`、`done`。
 
-后端最小测试：
+## 代码结构
+
+```
+backend/
+├── app/
+│   ├── main.py                        # FastAPI 入口、CORS、路由、SSE
+│   ├── models.py                      # Pydantic 模型
+│   ├── env_config.py                  # .env 加载
+│   ├── video_service.py               # Provider 调度、URL 校验、下载
+│   ├── transcript_service.py          # 内存转写任务、TTL 清理
+│   ├── stepaudio_client.py            # StepAudio 2.5 ASR SSE 客户端
+│   ├── deepseek_client.py             # DeepSeek Chat Completions（流式 + JSON）
+│   ├── summary_service.py             # AI 总结编排、问答 SSE
+│   ├── summary_models.py              # 摘要、思维导图、问答模型
+│   ├── summary_events.py              # SSE 事件格式化
+│   ├── summary_markdown_parser.py     # 摘要 Markdown 确定性解析
+│   ├── summary_session_store.py       # 内存问答会话存储与 TTL
+│   ├── summary_transcript_resolver.py # 字幕/ASR 文稿调度
+│   ├── prompt_templates.py            # 提示词模板
+│   └── providers/
+│       ├── base.py
+│       ├── bilibili_provider.py       # B 站 HTML 页面解析
+│       ├── douyin_provider.py         # 抖音实验性解析
+│       └── yt_dlp_provider.py         # yt-dlp 兜底
+├── requirements.txt
+└── tests/
+    ├── test_video_service.py          # Provider 调度、平台解析
+    ├── test_ai_summary.py             # DeepSeek、总结 SSE、问答、健康检查
+    ├── test_stepaudio_transcript.py   # StepAudio STT
+    └── test_bilibili_wbi.py           # B 站 WBI 签名
+frontend/
+├── src/
+│   ├── App.tsx                        # 首页 + 总结结果页
+│   ├── App.css                        # Tailwind CSS v4 样式入口
+│   ├── api.ts                         # Fetch 封装、SSE 读取、下载流
+│   ├── types.ts                       # 前端类型
+│   ├── constants/
+│   │   ├── home.ts                    # 首页文案与营销数据
+│   │   └── summary.ts                # 总结风格与阶段定义
+│   └── utils/
+│       ├── format.ts                  # 时长/时间戳格式化
+│       ├── mindmap.ts                 # 思维导图布局、节点展开折叠
+│       ├── summaryExport.ts           # 摘要 Markdown 导出
+│       └── url.ts                     # URL 校验与安全文件名
+├── package.json
+├── vite.config.ts
+└── tsconfig.json
+```
+
+## 测试
+
+### 运行所有后端测试
 
 ```bash
 .venv/bin/python -m pytest backend/tests
 ```
 
-前端最小验证：
+### 运行特定测试文件
+
+```bash
+.venv/bin/python -m pytest backend/tests/test_video_service.py
+.venv/bin/python -m pytest backend/tests/test_ai_summary.py
+```
+
+### 前端验证
 
 ```bash
 cd frontend
-npm run build
+npm run build        # 包含 tsc 类型检查 + Vite 构建
 ```
 
-前端界面、下载流程或总结交互改动后，尽量同时启动前后端并用浏览器验证主流程：
+当前没有前端单元测试框架。前端改动至少需通过 `npm run build`。
 
-1. 打开 `http://127.0.0.1:5173`。
-2. 粘贴公开视频链接。
-3. 确认解析结果、文稿来源、总结阶段进度、摘要流式输出、思维导图、问答入口、错误提示和下载触发行为符合预期。
+### 浏览器手动验证
 
-修复 bug 时优先补充或更新 `backend/tests` 中能覆盖该问题的测试。当前没有前端单元测试框架；前端改动至少运行 `npm run build`。
+- 打开 `http://127.0.0.1:5173`
+- 粘贴公开视频链接
+- 验证：解析结果、文稿来源、总结阶段进度、摘要流式输出、思维导图、问答入口、错误提示、下载触发行为
 
-## 代码结构
+修复 bug 时优先补充或更新 `backend/tests` 中能覆盖该问题的测试。
 
-- `backend/app/main.py`：FastAPI 应用、CORS、接口路由、SSE 响应和 HTTP 错误映射。
-- `backend/app/models.py`：视频解析、下载档位、字幕、转写任务和健康检查模型。
-- `backend/app/env_config.py`：环境变量加载，从项目根目录 `.env` 读取配置。
-- `backend/app/video_service.py`：Provider 调度、URL 校验、档位构建和下载入口。
-- `backend/app/transcript_service.py`：内存转写任务、音频抽取、STT 限制、音频分段、任务 TTL 和清理。
-- `backend/app/stepaudio_client.py`：StepAudio 2.5 ASR SSE 调用和响应解析。
-- `backend/app/deepseek_client.py`：DeepSeek OpenAI-compatible Chat Completions 封装、流式解析和 JSON 输出。
-- `backend/app/summary_service.py`：AI 总结编排、SSE 事件、结构化摘要、思维导图和临时问答会话。
-- `backend/app/summary_models.py`：摘要、思维导图、阶段事件、文稿和问答模型。
-- `backend/app/summary_events.py`：SSE 事件格式化工具和 Pydantic 模型序列化。
-- `backend/app/summary_markdown_parser.py`：从摘要 Markdown 确定性规则解析 StructuredSummary。
-- `backend/app/summary_session_store.py`：问答内存会话存储、TTL 清理和消息追加。
-- `backend/app/summary_transcript_resolver.py`：总结流程中字幕/STT 文稿调度。
-- `backend/app/prompt_templates.py`：总结、思维导图和问答提示词。
-- `backend/app/providers/`：平台 Provider。抖音优先走 `douyin_provider.py`，B 站优先走 `bilibili_provider.py`，其他平台走 `yt_dlp_provider.py`。
-- `backend/tests/test_video_service.py`：后端核心服务、Provider 调度和平台解析辅助函数测试。
-- `backend/tests/test_ai_summary.py`：DeepSeek、总结 SSE、问答会话和健康检查测试。
-- `frontend/src/api.ts`：前端 API 调用、SSE 读取、下载流读取和文件名解析。
-- `frontend/src/types.ts`：前端类型。
-- `frontend/src/App.tsx`：首页、总结、文稿、思维导图、问答和下载主流程。
-- `frontend/src/App.css`：当前主要样式文件，已引入 Tailwind CSS v4。
-- `frontend/src/constants/home.ts`：首页静态文案和营销数据常量。
-- `frontend/src/constants/summary.ts`：总结风格列表和阶段定义常量。
-- `frontend/src/utils/format.ts`：时长格式化、时间戳格式化等工具函数。
-- `frontend/src/utils/mindmap.ts`：思维导图布局计算、节点展开/折叠逻辑。
-- `frontend/src/utils/summaryExport.ts`：摘要 Markdown 导出内容构建。
-- `frontend/src/utils/url.ts`：URL 校验和文件名安全处理。
+## 代码规范
 
-## 开发约定
+### 通用
 
-- 默认使用简体中文回复、写文档和提交信息。
-- 优先沿用当前前后端分离架构、Provider 边界、SSE 事件风格和现有 UI 风格。
-- 修改后端共享逻辑前先确认 Provider、转写、总结和下载调用关系，避免只改单一路径导致统一接口行为不一致。
-- 新增平台能力优先封装为 Provider；站点解析优先复用 `yt-dlp`，只有在目标站点有明确、可维护的公开页面数据来源时才补专用解析链路。
-- 新增 AI 模型、第三方 API 或持久化能力前先确认必要性，并说明密钥、隐私、成本、稳定性和失败降级边界。
-- 自定义总结提示词只能作为摘要关注点补充，不应允许覆盖系统边界、输出结构、安全限制或后续问答规则。
-- 摘要、思维导图和问答的模型失败应返回清晰中文错误；能保留部分结果时不要丢弃已有摘要或文稿。
-- 抖音专用链路是实验能力，不承诺稳定绕过风控或一定无水印。
-- B 站专用链路只复用公开视频页和公开播放地址接口中的匿名可访问数据，不读取 Cookie，不承诺登录、会员、地区限制、风控或高画质权限。
-- B 站 `source` 档位表示“当前匿名访问下最高可用 MP4”，不等于原站所有权限下的最高画质。
-- B 站字幕只处理匿名可访问的公开字幕；字幕不存在、需要登录或字幕接口失败时，必须降级为字幕不可用或 STT 兜底状态，不要让视频解析失败。
-- B 站 DASH 分离流需要用 `ffmpeg` 合并；普通 MP4 `durl` 流包含音频时不要再强制合并音频。
-- B 站封面图在本地前端加载时可能因 Referer 被 CDN 拒绝；前端封面 `<img>` 应保留 `referrerPolicy="no-referrer"`，不要改回默认 Referer 策略。
-- 遇到 B 站 412、登录、会员、地区限制、风控等问题，应返回清晰中文错误，不要承诺代码必然绕过平台限制。
-- 不默认接入第三方视频解析 API；如需引入，必须封装为独立 Provider、默认关闭，并说明隐私、稳定性和安全边界。
-- 前端视觉继续贴近 `DESIGN/首页.html` 和 `DESIGN/视频总结页.png` 的蓝白 SaaS 风格；不要为小改动大规模重写稳定 UI。
-- 当前样式主要在 `App.css`，新增局部组件可以逐步使用 Tailwind utility class，但避免无关的全局样式重排。
-- 使用 `lucide-react` 提供图标，避免手写重复 SVG。
-- 下载进度必须保留可见状态；大文件下载优先使用 `showSaveFilePicker` 和 `FileSystemWritableFileStream` 流式写盘，不要退回把完整视频聚合成前端 `Blob`。
-- 新增依赖前先确认必要性，优先使用已有依赖和标准库。
+- 使用简体中文回复、写文档和提交信息
+- 优先沿用当前前后端分离架构、Provider 边界、SSE 事件风格和现有 UI 风格
+- 修改后端共享逻辑前先确认 Provider、转写、总结和下载调用关系
+- 新增依赖前先确认必要性，优先使用已有依赖和标准库
+
+### 后端
+
+- Python 3.11+，类型标注适度（Pydantic 模型即类型来源）
+- Provider 模式：新增平台能力优先封装为 Provider；站点解析优先复用 yt-dlp
+- 新增 AI 模型或第三方 API 前需说明密钥、隐私、成本、稳定性和失败降级边界
+- 自定义总结提示词只能作为摘要关注点补充，不应覆盖系统边界、输出结构或安全限制
+- 模型失败返回清晰中文错误；能保留部分结果时不丢弃已有摘要或文稿
+
+### 前端
+
+- TypeScript 严格模式（`tsc --noEmit` 在 build 中自动运行）
+- 视觉风格参见根目录 `DESIGN.md`，页面布局参考 `DESIGN/首页.html` 和 `DESIGN/视频总结页.png`
+- 样式主要在 `App.css`，新增局部组件使用 Tailwind utility class，避免全局样式重排
+- 图标使用 `lucide-react`，不手写重复 SVG
+- 下载保留可见进度；大文件使用 `showSaveFilePicker` + `FileSystemWritableFileStream` 流式写盘
+
+### 平台相关约定
+
+- **B 站**：仅读取匿名公开数据，不读取 Cookie。`source` 档位为当前匿名访问下最高可用 MP4。封面 `<img>` 使用 `referrerPolicy="no-referrer"`。字幕不存在时降级为 STT 兜底，不让视频解析失败。DASH 分离流用 ffmpeg 合并；普通 MP4 `durl` 流包含音频时不强制合并。412、登录等错误返回清晰中文提示。
+- **抖音**：实验能力，不承诺稳定无水印。
+- **第三方解析 API**：如需引入必须封装为独立 Provider、默认关闭，说明隐私、稳定性和安全边界。
 
 ## 安全边界
 
-- 只处理公开可访问的 `http` / `https` 视频链接。
-- 不读取浏览器 Cookie，不新增普通用户 Cookie 输入框，不在日志或错误中打印 Cookie、Authorization、API Key、令牌或其他敏感信息。
-- `.env` 只在后端本地读取；前端不得接收或展示 `STEP_API_KEY`、`DEEPSEEK_API_KEY` 等密钥。
-- 公网部署前必须补齐认证、限流、SSRF 防护、任务队列、文件大小和时长限制、临时文件生命周期、资源隔离、费用控制和可观测日志。
-- 不要直接把当前同步下载、内存转写任务或内存问答会话接口暴露为公网多用户服务。
-- 下载、转写和总结相关改动要注意临时目录清理、内存任务 TTL、并发限制和大文件资源占用。
+- 只处理公开 `http`/`https` 视频链接
+- 不读取浏览器 Cookie，不在日志或错误中打印 Cookie、Authorization、API Key 等敏感信息
+- `.env` 仅后端本地读取；前端不得接收或展示密钥
+- 公网部署前必须补齐：认证、限流、SSRF 防护、任务队列、文件大小/时长限制、资源隔离、费用控制、可观测日志
+- 不要将同步下载、内存转写、内存问答会话接口直接暴露为公网多用户服务
 
 ## Git 工作流
 
-- 开发前先运行 `git status --short`。
-- 如有未提交改动，不要擅自覆盖、回滚或整理；需要改同一文件时先理解现有改动并基于其继续。
-- 当前在 `main` 且任务不是低风险小改动时，先从 `main` 创建独立分支。
-- 当前已在合适分支上时，直接继续。
-- 不使用 `git reset --hard`、`git checkout -- <file>`、强制覆盖或强制推送，除非用户明确要求。
-- 提交信息使用中文 Conventional Commits，并包含标题和正文。
-- 用户说“提交合并”时，表示提交当前修改后合并到 `main`，再删除当前临时分支。
+- 开发前先运行 `git status --short`
+- 有未提交改动时不擅自覆盖、回滚或整理
+- 在 `main` 上且非低风险小改动时，先创建分支；已在合适分支上时直接继续
+- 提交信息使用中文 Conventional Commits（标题 + 正文）
+- 禁用 `git reset --hard`、`git checkout -- <file>`、强制覆盖或强制推送（除非用户明确要求）
+- 用户说"提交合并"时：提交当前修改 → 合并到 `main` → 删除临时分支
+
+> 以下可直接在 `main` 修改：README、文档拼写、配置/样式小调、用户明确要求。
+
+### 提交信息格式
+
+```
+<type>: <简短描述>
+
+<详细说明>
+```
+
+常用 type：`feat`（新功能）、`fix`（修复）、`docs`（文档）、`refactor`（重构）、`test`（测试）、`chore`（杂项）。
+
+## 调试与故障排查
+
+### 常见问题
+
+| 症状 | 可能原因 | 排查步骤 |
+|------|----------|----------|
+| `sttAvailable: false` | `STEP_API_KEY` 未配置或无效 | 检查 `.env` 中 `STEP_API_KEY` |
+| `deepseekAvailable: false` | `DEEPSEEK_API_KEY` 未配置或无效 | 检查 `.env` 中 `DEEPSEEK_API_KEY` |
+| 视频解析失败 | 链接不公开、平台不支持或反爬 | 检查 URL 可公开访问，确认平台在支持列表中 |
+| B 站 412 错误 | 反爬拦截 | 当前匿名访问限制，无法代码绕过 |
+| 下载无声音 | DASH 分离流未合并 | 确认 ffmpeg 已安装且在 PATH 中 |
+| 前端封面不显示 | B 站 CDN Referer 策略 | 确认 `<img>` 使用 `referrerPolicy="no-referrer"` |
+| SSE 连接中断 | 后端异常或超时 | 检查后端日志，确认 `DEEPSEEK_REQUEST_TIMEOUT_SECONDS` 足够 |
+| 端口 5173/8000 被占用 | 其他项目占用 | `lsof -i :5173` 或 `lsof -i :8000` 确认占用来源 |
+
+### 日志
+
+后端使用 Python 标准 `logging` 模块，开发模式下 `uvicorn --reload` 会自动输出请求日志。排查问题时优先检查终端中的后端输出。
 
 ## 交付前检查
 
-根据改动范围选择最小必要验证：
+根据改动范围选择最小必要验证，完成后回复中需说明：
 
-- 后端逻辑：`.venv/bin/python -m pytest backend/tests`
-- 前端类型或界面：`cd frontend && npm run build`
-- 接口联调、总结或下载流程：启动前后端后用浏览器验证主流程
+1. 改了什么
+2. 运行了哪些验证
+3. 当前分支
+4. 是否还有未提交改动
 
-最终回复需要说明：改了什么、运行了哪些验证、当前分支、是否还有未提交改动。
+| 改动范围 | 验证命令 |
+|----------|----------|
+| 后端逻辑 | `.venv/bin/python -m pytest backend/tests` |
+| 前端类型/界面 | `cd frontend && npm run build` |
+| 接口联调、总结或下载流程 | 启动前后端后用浏览器验证主流程 |

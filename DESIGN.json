@@ -1,0 +1,353 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-04-28T00:00:00.000Z",
+  "title": "Design System: AI 视频摘要助手",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "信任蓝 (Trust Blue)",
+        "canonical": "oklch(42% 0.15 260)",
+        "tonalRamp": [
+          "oklch(15% 0.15 260)",
+          "oklch(25% 0.15 260)",
+          "oklch(34% 0.15 260)",
+          "oklch(42% 0.15 260)",
+          "oklch(52% 0.14 260)",
+          "oklch(62% 0.12 260)",
+          "oklch(75% 0.08 260)",
+          "oklch(90% 0.03 260)"
+        ]
+      },
+      "primary-dark": {
+        "role": "primary-hover",
+        "displayName": "深蓝墨 (Deep Blue Ink)",
+        "canonical": "oklch(34% 0.15 260)",
+        "tonalRamp": [
+          "oklch(12% 0.15 260)",
+          "oklch(22% 0.15 260)",
+          "oklch(30% 0.15 260)",
+          "oklch(34% 0.15 260)",
+          "oklch(42% 0.14 260)",
+          "oklch(52% 0.12 260)",
+          "oklch(65% 0.08 260)",
+          "oklch(82% 0.03 260)"
+        ]
+      },
+      "primary-soft": {
+        "role": "primary-bg",
+        "displayName": "晨雾蓝 (Morning Mist Blue)",
+        "canonical": "oklch(93% 0.03 260)",
+        "tonalRamp": [
+          "oklch(78% 0.05 260)",
+          "oklch(82% 0.04 260)",
+          "oklch(86% 0.035 260)",
+          "oklch(90% 0.03 260)",
+          "oklch(93% 0.03 260)",
+          "oklch(95% 0.02 260)",
+          "oklch(97% 0.01 260)",
+          "oklch(98.5% 0.005 260)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "深海军蓝 (Deep Navy Ink)",
+        "canonical": "oklch(18% 0.01 260)",
+        "tonalRamp": [
+          "oklch(8% 0.01 260)",
+          "oklch(14% 0.01 260)",
+          "oklch(18% 0.01 260)",
+          "oklch(28% 0.01 260)",
+          "oklch(40% 0.008 260)",
+          "oklch(55% 0.006 260)",
+          "oklch(72% 0.004 260)",
+          "oklch(88% 0.002 260)"
+        ]
+      },
+      "muted": {
+        "role": "neutral-text",
+        "displayName": "石板灰 (Slate Ash)",
+        "canonical": "oklch(48% 0.008 260)",
+        "tonalRamp": [
+          "oklch(28% 0.008 260)",
+          "oklch(35% 0.008 260)",
+          "oklch(42% 0.008 260)",
+          "oklch(48% 0.008 260)",
+          "oklch(58% 0.006 260)",
+          "oklch(68% 0.005 260)",
+          "oklch(78% 0.004 260)",
+          "oklch(88% 0.002 260)"
+        ]
+      },
+      "surface": {
+        "role": "neutral-bg",
+        "displayName": "纯白壳 (Pure White Shell)",
+        "canonical": "oklch(100% 0.002 260)",
+        "tonalRamp": [
+          "oklch(88% 0.002 260)",
+          "oklch(91% 0.002 260)",
+          "oklch(94% 0.002 260)",
+          "oklch(97% 0.002 260)",
+          "oklch(98.5% 0.002 260)",
+          "oklch(99.3% 0.001 260)",
+          "oklch(99.7% 0.001 260)",
+          "oklch(100% 0.002 260)"
+        ]
+      },
+      "surface-soft": {
+        "role": "neutral-bg-alt",
+        "displayName": "冰蓝白 (Ice Blue White)",
+        "canonical": "oklch(97.5% 0.006 260)",
+        "tonalRamp": [
+          "oklch(86% 0.006 260)",
+          "oklch(89% 0.006 260)",
+          "oklch(92% 0.006 260)",
+          "oklch(95% 0.006 260)",
+          "oklch(97% 0.006 260)",
+          "oklch(97.5% 0.006 260)",
+          "oklch(98.5% 0.004 260)",
+          "oklch(99.5% 0.002 260)"
+        ]
+      },
+      "line": {
+        "role": "neutral-border",
+        "displayName": "冷灰线 (Cool Gray Line)",
+        "canonical": "oklch(90% 0.006 260)",
+        "tonalRamp": [
+          "oklch(78% 0.006 260)",
+          "oklch(82% 0.006 260)",
+          "oklch(86% 0.006 260)",
+          "oklch(90% 0.006 260)",
+          "oklch(92% 0.005 260)",
+          "oklch(94% 0.004 260)",
+          "oklch(96% 0.003 260)",
+          "oklch(98% 0.002 260)"
+        ]
+      },
+      "success": {
+        "role": "tertiary",
+        "displayName": "林绿 (Forest Green)",
+        "canonical": "oklch(50% 0.16 160)",
+        "tonalRamp": [
+          "oklch(20% 0.16 160)",
+          "oklch(32% 0.16 160)",
+          "oklch(42% 0.16 160)",
+          "oklch(50% 0.16 160)",
+          "oklch(60% 0.14 160)",
+          "oklch(72% 0.10 160)",
+          "oklch(84% 0.06 160)",
+          "oklch(94% 0.03 160)"
+        ]
+      },
+      "warning": {
+        "role": "tertiary",
+        "displayName": "琥珀棕 (Amber Brown)",
+        "canonical": "oklch(52% 0.12 80)",
+        "tonalRamp": [
+          "oklch(22% 0.12 80)",
+          "oklch(34% 0.12 80)",
+          "oklch(44% 0.12 80)",
+          "oklch(52% 0.12 80)",
+          "oklch(62% 0.10 80)",
+          "oklch(74% 0.08 80)",
+          "oklch(86% 0.05 80)",
+          "oklch(94% 0.03 80)"
+        ]
+      },
+      "danger": {
+        "role": "tertiary",
+        "displayName": "红陶 (Red Clay)",
+        "canonical": "oklch(42% 0.18 20)",
+        "tonalRamp": [
+          "oklch(18% 0.18 20)",
+          "oklch(28% 0.18 20)",
+          "oklch(36% 0.18 20)",
+          "oklch(42% 0.18 20)",
+          "oklch(52% 0.16 20)",
+          "oklch(64% 0.12 20)",
+          "oklch(78% 0.06 20)",
+          "oklch(92% 0.03 20)"
+        ]
+      },
+      "premium": {
+        "role": "accent",
+        "displayName": "金色时刻 (Golden Hour)",
+        "canonical": "oklch(72% 0.16 80)",
+        "tonalRamp": [
+          "oklch(32% 0.16 80)",
+          "oklch(42% 0.16 80)",
+          "oklch(52% 0.16 80)",
+          "oklch(62% 0.16 80)",
+          "oklch(72% 0.16 80)",
+          "oklch(80% 0.14 80)",
+          "oklch(88% 0.08 80)",
+          "oklch(95% 0.04 80)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "headline": { "displayName": "Headline", "purpose": "页面主标题、摘要 H1。极高字重建立权威锚点。" },
+      "title": { "displayName": "Title", "purpose": "摘要 H2、面板标题。清晰但不过度。" },
+      "subtitle": { "displayName": "Subtitle", "purpose": "摘要 H3、区块副标题。" },
+      "body": { "displayName": "Body", "purpose": "正文、摘要 Markdown 主体。行宽上限 75ch。" },
+      "label": { "displayName": "Label", "purpose": "按钮文字、字段标签、辅助标注。" }
+    },
+    "shadows": [
+      { "name": "panel", "value": "0 18px 44px rgba(14, 37, 70, 0.08)", "purpose": "分析面板、结果卡片。Level 1。" },
+      { "name": "button-primary", "value": "0 15px 30px rgba(0, 82, 204, 0.22)", "purpose": "渐变主按钮专属。蓝色调强化可点击性。" },
+      { "name": "button-standard", "value": "0 12px 24px rgba(0, 74, 173, 0.18)", "purpose": "旧版主按钮阴影。" },
+      { "name": "card", "value": "0 26px 70px rgba(22, 66, 128, 0.09)", "purpose": "ui-card 组件阴影。" }
+    ],
+    "motion": [
+      { "name": "button-transition", "value": "transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease, color 0.18s ease", "purpose": "按钮状态过渡。" },
+      { "name": "input-transition", "value": "border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease", "purpose": "输入框聚焦过渡。" },
+      { "name": "spin", "value": "spin 0.85s linear infinite", "purpose": "加载 spinner 旋转。" }
+    ],
+    "breakpoints": [
+      { "name": "mobile-tab", "value": "760px", "purpose": "标签页布局切换：四列 → 单列，底部指示器 → 左侧竖条。" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "主 CTA。蓝紫渐变背景、白色文字、专属投影。用于表单提交和关键操作。",
+      "html": "<button class=\"ds-btn-primary\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polygon points=\"5 3 19 12 5 21 5 3\"/></svg>立即生成报告</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 20px; font-size: 14px; font-weight: 900; color: #ffffff; background: linear-gradient(135deg, #1f6fff, #0052cc 62%, #003d9b); border: 1px solid transparent; border-radius: 10px; box-shadow: 0 15px 30px rgba(0, 82, 204, 0.22); cursor: pointer; transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease; } .ds-btn-primary:hover:not(:disabled) { transform: translateY(-1px); } .ds-btn-primary:focus-visible { outline: 3px solid rgba(0, 82, 204, 0.2); outline-offset: 3px; } .ds-btn-primary:disabled { opacity: 0.58; cursor: not-allowed; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "次要操作按钮。冰蓝底色、蓝色文字、半透明蓝色边框。",
+      "html": "<button class=\"ds-btn-secondary\">取消</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 20px; font-size: 14px; font-weight: 900; color: #0052cc; background: #f5f9ff; border: 1px solid rgba(0, 82, 204, 0.24); border-radius: 10px; cursor: pointer; transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease; } .ds-btn-secondary:hover:not(:disabled) { transform: translateY(-1px); } .ds-btn-secondary:focus-visible { outline: 3px solid rgba(0, 82, 204, 0.2); outline-offset: 3px; } .ds-btn-secondary:disabled { opacity: 0.58; cursor: not-allowed; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "低优先级操作按钮。半透明白底、深色文字、灰蓝细边。用于导航栏和工具栏内嵌操作。",
+      "html": "<button class=\"ds-btn-ghost ds-btn-ghost-sm\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m12 19-7-7 7-7\"/><path d=\"M19 12H5\"/></svg>返回首页</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 20px; font-size: 14px; font-weight: 900; color: #1d3052; background: rgba(255, 255, 255, 0.8); border: 1px solid rgba(195, 205, 222, 0.82); border-radius: 10px; cursor: pointer; transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease; } .ds-btn-ghost:hover:not(:disabled) { transform: translateY(-1px); } .ds-btn-ghost:focus-visible { outline: 3px solid rgba(0, 82, 204, 0.2); outline-offset: 3px; } .ds-btn-ghost:disabled { opacity: 0.58; cursor: not-allowed; } .ds-btn-ghost-sm { min-height: 36px; padding: 0 13px; font-size: 13px; }"
+    },
+    {
+      "name": "Tab Navigation",
+      "kind": "nav",
+      "refersTo": "tab-button",
+      "description": "四标签页切换导航。图标+文字、底部活跃指示器，移动端切换为左侧竖条。",
+      "html": "<nav class=\"ds-tabs\"><button class=\"ds-tab ds-tab-active\" role=\"tab\" aria-selected=\"true\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z\"/><polyline points=\"14 2 14 8 20 8\"/></svg>AI 摘要</button><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 6v6l4 2\"/></svg>思维导图</button></nav>",
+      "css": ".ds-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); min-height: 82px; padding: 0 16px; border-bottom: 1px solid #dfe5ef; } .ds-tab { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-width: 0; padding: 0 10px; color: #424b5e; background: transparent; border: 0; font-size: 16px; font-weight: 850; cursor: pointer; transition: color 0.18s ease; } .ds-tab-active { color: #004aad; } .ds-tab-active::after { position: absolute; right: 12px; bottom: 0; left: 12px; height: 3px; content: ''; background: #004aad; border-radius: 999px 999px 0 0; } .ds-tab:focus-visible { outline: 3px solid rgba(0, 82, 204, 0.2); outline-offset: 3px; } @media (max-width: 760px) { .ds-tabs { grid-template-columns: 1fr; padding: 8px; } .ds-tab { justify-content: flex-start; min-height: 48px; padding: 0 12px; } .ds-tab-active::after { right: auto; bottom: 8px; left: 0; width: 3px; height: 32px; border-radius: 999px; } }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "半透明白色内容容器。微阴影、灰蓝细边、8px 圆角。最小内容包裹。",
+      "html": "<div class=\"ds-card\"><div style=\"padding: 28px;\"><strong style=\"color: #071b3a; font-size: 15px;\">视频摘要</strong><p style=\"margin-top: 3px; color: #5d6678; font-size: 12px;\">根据视频文稿自动生成</p></div></div>",
+      "css": ".ds-card { background: rgba(255, 255, 255, 0.92); border: 1px solid rgba(201, 214, 234, 0.74); border-radius: 8px; box-shadow: 0 26px 70px rgba(22, 66, 128, 0.09); }"
+    },
+    {
+      "name": "Input Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "视频链接输入框。白色背景、12px 圆角、聚焦时蓝色外发光。",
+      "html": "<input class=\"ds-input\" type=\"url\" placeholder=\"粘贴公开视频链接…\" />",
+      "css": ".ds-input { width: 100%; min-height: 52px; padding: 0 16px; font-size: 15px; color: #041b3c; background: #ffffff; border: 1px solid rgba(171, 192, 226, 0.82); border-radius: 12px; outline: 0; transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease; } .ds-input:focus { border-color: #1f6fff; background: #ffffff; box-shadow: 0 0 0 4px rgba(31, 111, 255, 0.14); } .ds-input:disabled { opacity: 0.58; cursor: not-allowed; }"
+    },
+    {
+      "name": "Status Message (Info)",
+      "kind": "custom",
+      "refersTo": "message-info",
+      "description": "信息提示横幅。蓝色系、晨雾蓝底、16% 透明度蓝色边框。",
+      "html": "<div class=\"ds-message ds-message-info\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><line x1=\"12\" y1=\"16\" x2=\"12\" y2=\"12\"/><line x1=\"12\" y1=\"8\" x2=\"12.01\" y2=\"8\"/></svg>视频解析中，请耐心等待。</div>",
+      "css": ".ds-message { display: flex; align-items: flex-start; gap: 10px; margin: 12px 0 0; padding: 12px 14px; border-radius: 8px; font-size: 14px; line-height: 1.55; } .ds-message svg { flex: 0 0 auto; margin-top: 2px; } .ds-message-info { color: #003b8e; background: #edf4ff; border: 1px solid rgba(0, 74, 173, 0.16); }"
+    },
+    {
+      "name": "Status Message (Error)",
+      "kind": "custom",
+      "refersTo": "message-error",
+      "description": "错误提示横幅。红陶色系、浅粉底。",
+      "html": "<div class=\"ds-message ds-message-error\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><line x1=\"15\" y1=\"9\" x2=\"9\" y2=\"15\"/><line x1=\"9\" y1=\"9\" x2=\"15\" y2=\"15\"/></svg>视频解析失败，请检查链接后重试。</div>",
+      "css": ".ds-message-error { color: #b42318; background: #fff1f0; border: 1px solid rgba(180, 35, 24, 0.18); }"
+    },
+    {
+      "name": "Empty State",
+      "kind": "custom",
+      "refersTo": "empty-panel",
+      "description": "空状态占位区。虚线边框、冰蓝白底、居中图标+文字。",
+      "html": "<div class=\"ds-empty\"><svg width=\"40\" height=\"40\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M8 14s1.5 2 4 2 4-2 4-2\"/><line x1=\"9\" y1=\"9\" x2=\"9.01\" y2=\"9\"/><line x1=\"15\" y1=\"9\" x2=\"15.01\" y2=\"9\"/></svg><p>粘贴一个公开视频链接，开始生成 AI 摘要</p></div>",
+      "css": ".ds-empty { display: flex; align-items: center; flex-direction: column; justify-content: center; min-height: 320px; padding: 28px; color: #5d6678; text-align: center; background: #f8fbff; border: 1px dashed #c7d0df; border-radius: 8px; } .ds-empty svg { color: #004aad; margin-bottom: 12px; }"
+    },
+    {
+      "name": "AI Summary Area",
+      "kind": "custom",
+      "refersTo": "markdown-output",
+      "description": "AI 摘要流式渲染区。蓝色系的代码块、blockquote 左侧蓝色细条、打字机渐进效果。",
+      "html": "<div class=\"ds-markdown-output\"><p>视频围绕<strong>深度学习模型优化</strong>展开，核心观点如下：</p><ul><li>模型压缩可显著降低推理成本</li><li>量化训练是精度与效率的平衡点</li></ul></div>",
+      "css": ".ds-markdown-output { color: #303849; font-size: 16px; line-height: 1.78; } .ds-markdown-output p { margin: 0 0 14px; } .ds-markdown-output strong { color: #071b3a; font-weight: 850; } .ds-markdown-output ul { margin: 0 0 16px; padding-left: 1.45em; } .ds-markdown-output li { margin: 7px 0; padding-left: 2px; } .ds-markdown-output code { padding: 2px 5px; color: #0d3d82; background: #eef5ff; border-radius: 5px; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace; font-size: 0.92em; } .ds-markdown-output blockquote { margin: 18px 0; padding: 12px 14px; color: #42516a; background: #f6f9fd; border-left: 4px solid rgba(0, 74, 173, 0.42); border-radius: 0 8px 8px 0; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "通透工作室 (The Translucent Studio)",
+    "overview": "这是一个为知识工作者打造的 AI 工具界面。设计语言的核心隐喻是'通透工作室'：一个光线充足、秩序井然的私人工作空间，AI 在这里是安静的协作者而非喧哗的主角。界面服务于内容 — 视频摘要、文稿、思维导图 — 而非自我展示。色彩系统以信任蓝为单一强调色，大面积留白和冰蓝底色营造冷静、专注的氛围。排版强调层级对比：标题厚重锚定视线，正文行高慷慨（1.78）确保长文本阅读不疲劳。所有交互元素带有克制的微交互反馈 — 悬浮时轻微上浮 1px，聚焦时外发光环 — 不喧哗但明确可感知。",
+    "keyCharacteristics": [
+      "通透感优先：大量留白、冰蓝底色、半透明白色卡片，信息不被容器压迫",
+      "单一信任蓝强调色：≤10% 表面占比，通过稀缺性建立视觉权重",
+      "微交互明确但不张扬：1px 悬浮抬升、指数缓出过渡、聚焦外发光环",
+      "内容即界面：摘要 Markdown 区、文稿区以类文档排版呈现，不嵌套多余卡片",
+      "优雅降级视觉化：失败不影响已有结果，警告信息以淡色背景横向展开而非模态阻断"
+    ],
+    "rules": [
+      {
+        "name": "The One Accent Rule",
+        "body": "信任蓝仅用于 ≤10% 的表面区域。CTA、链接、聚焦环、活跃指示器 — 仅此四处。不允许蓝色装饰性边框、蓝色背景区块、蓝色强调文字。稀缺性是它的力量。",
+        "section": "colors"
+      },
+      {
+        "name": "The Tinted Neutral Rule",
+        "body": "每个中性色都带有微量的蓝调 (chroma 0.005–0.01)。禁止纯黑 (#000) 或纯白 (#fff)。即使是'白色'卡片也是在冰蓝白底色上。",
+        "section": "colors"
+      },
+      {
+        "name": "The Weight Contrast Rule",
+        "body": "相邻层级间的字重差异 ≥150。Headline 850 / Title 700 / Subtitle 600 / Body 400。平坦的字重阶梯无法建立信息层级。",
+        "section": "typography"
+      },
+      {
+        "name": "The Reading Comfort Rule",
+        "body": "任何正文块的行高不得低于 1.6。摘要和文稿是核心产物，用户需长时间阅读 — 行高不足是对核心体验的直接损害。",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-By-Default Rule",
+        "body": "界面在静止状态下保持平坦。阴影仅在交互响应（hover、focus）或容器边界（卡片、面板）时出现。禁止装饰性阴影。",
+        "section": "elevation"
+      },
+      {
+        "name": "The Zero Modal Rule",
+        "body": "不设 Level 2+ 阴影层级。所有信息展开使用内联/渐进式方案 — 拓展面板、内联消息、可折叠区域 — 而非模态弹窗。",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "让内容决定容器大小。摘要 Markdown 区和文稿区采用流动宽度而非固定卡片网格。",
+      "用空间节奏区分信息层级。关键区块间留 40px+ 间距，区块内部用 16-24px。",
+      "用颜色稀缺性建立权重。信任蓝仅用于 ≤10% 的表面元素。",
+      "每个交互元素都有 :focus-visible 外发光环（3px, rgba(0,82,204,0.2), offset 3px）。",
+      "使用 1px hover 抬升 (translateY(-1px)) 做交互反馈，过渡时间 0.18s ease。",
+      "为 prefers-reduced-motion 用户关闭所有过渡和动画（已全局实现）。"
+    ],
+    "donts": [
+      "使用侧边彩条 (border-left > 1px 作为彩色强调)。用完整边框、背景色块或前置图标替代。",
+      "使用渐变文字 (background-clip: text)。强调通过字重或大小变化完成。",
+      "使用玻璃态模糊作为默认风格。App shell 的渐变背景是唯一例外且位于最底层。",
+      "堆叠等大的图标+标题+文字卡片网格。内容区应流动排版而非僵硬网格。",
+      "第一时间用模态弹窗。优先考虑内联展开、可折叠区域、内联消息。",
+      "使用纯黑 (#000) 或纯白 (#fff)。所有中性色带微量蓝调。",
+      "在正文中使用花哨动画。动画仅限状态过渡（hover, focus, active）和加载指示器。",
+      "让 AI 生成区看起来像普通文本区。始终用晨雾蓝底或等效视觉线索区分。"
+    ]
+  }
+}
