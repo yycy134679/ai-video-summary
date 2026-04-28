@@ -213,6 +213,10 @@ function App() {
     }
     setPage(nextPage);
     window.scrollTo({ top: 0, behavior: "smooth" });
+    requestAnimationFrame(() => {
+      const targetId = nextPage === "summary" ? "report-title" : "home-title";
+      document.getElementById(targetId)?.focus();
+    });
   }
 
   async function handleCopy(text: string, successMessage: string) {

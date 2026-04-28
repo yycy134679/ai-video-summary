@@ -16,7 +16,7 @@
   overflow: auto;
   background: #fbfdff;
   border: 1px solid #d7e0ee;
-  border-radius: 18px;
+  border-radius: var(--radius-3xl);
 }
 
 .mindmap-canvas svg {
@@ -35,8 +35,8 @@
 .mindmap-toggle circle,
 .mindmap-branch-node line {
   transition:
-    stroke-width 0.18s ease,
-    opacity 0.18s ease;
+    stroke-width var(--duration-fast) var(--ease-default),
+    opacity var(--duration-fast) var(--ease-default);
 }
 
 .mindmap-branch-node[role="button"]:hover line {

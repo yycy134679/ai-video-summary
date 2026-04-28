@@ -2,16 +2,19 @@ import { Map as MapIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { MindMapNode } from "../../types";
 import { EmptyPanel } from "../ui/EmptyPanel";
+import { Button } from "../ui/Button";
 import { exportMindMapPng, exportMindMapSvg } from "../../utils/mindmapExport";
 import { collectNodeIds, getMindMapLayout, parseTitleParts, truncateText } from "../../utils/mindmap";
 import "./MindMapPanel.css";
 
 export function MindMapPanel({
   mindmap,
-  videoTitle
+  videoTitle,
+  isRunning
 }: {
   mindmap: MindMapNode | null;
   videoTitle: string;
+  isRunning: boolean;
 }) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -25,7 +28,7 @@ export function MindMapPanel({
   }, [mindmap]);
 
   if (!mindmap) {
-    return <EmptyPanel icon={<MapIcon size={22} />} text="思维导图生成后会显示在这里。" />;
+    return <EmptyPanel icon={<MapIcon size={22} />} text={isRunning ? "正在生成思维导图..." : "思维导图生成后会显示在这里。"} isLoading={isRunning} />;
   }
 
   const layout = getMindMapLayout(mindmap, expandedIds, {
@@ -56,12 +59,12 @@ export function MindMapPanel({
   return (
     <div className="mindmap-panel">
       <div className="mindmap-actions">
-        <button type="button" className="soft-button compact-button" onClick={() => exportMindMapSvg(svgRef.current, videoTitle)}>
+        <Button variant="soft" size="compact" onClick={() => exportMindMapSvg(svgRef.current, videoTitle)}>
           导出 SVG
-        </button>
-        <button type="button" className="soft-button compact-button" onClick={() => exportMindMapPng(svgRef.current, videoTitle)}>
+        </Button>
+        <Button variant="soft" size="compact" onClick={() => exportMindMapPng(svgRef.current, videoTitle)}>
           导出 PNG
-        </button>
+        </Button>
       </div>
       <div className="mindmap-canvas">
         <svg ref={svgRef} viewBox={`0 0 ${layout.width} ${layout.height}`} width={layout.width} height={layout.height} role="img" aria-label="视频思维导图">
@@ -101,10 +104,16 @@ export function MindMapPanel({
             const textColor = isRoot ? "#6b7280" : "#6f7888";
             const circleFill = "#fbfdff";
 
+            const a11yLabel = item.node.children.length
+              ? `${isExpanded ? "折叠" : "展开"}分支：${item.node.title}${item.node.summary ? `，${item.node.summary}` : ""}`
+              : `思维导图节点：${item.node.title}${item.node.summary ? `，${item.node.summary}` : ""}`;
+
             return (
               <g
                 key={item.node.id}
                 role={item.node.children.length ? "button" : "img"}
+                aria-label={a11yLabel}
+                aria-expanded={item.node.children.length ? isExpanded : undefined}
                 tabIndex={item.node.children.length ? 0 : -1}
                 className="mindmap-branch-node"
                 onClick={() => toggleNode(item.node)}
@@ -151,6 +160,9 @@ export function MindMapPanel({
                 </text>
                 {(item.node.children.length || isRoot) ? (
                   <g className="mindmap-toggle" transform={`translate(${item.lineEndX} ${item.y})`}>
+                    {item.node.children.length ? (
+                      <circle r={22} fill="transparent" stroke="none" />
+                    ) : null}
                     <circle r={isRoot ? 7.5 : 6.5} fill={circleFill} stroke={lineColor} strokeWidth="1.8" />
                     {item.node.children.length ? (
                       <text x="0" y="4.5" textAnchor="middle" fill={lineColor} fontSize="13" fontWeight="800">

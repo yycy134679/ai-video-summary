@@ -1,5 +1,5 @@
 import { Copy, RefreshCw, Sparkles } from "lucide-react";
-import type { FormEvent } from "react";
+import type { FormEvent, KeyboardEvent } from "react";
 import type {
   MindMapNode,
   QaMessage,
@@ -14,7 +14,8 @@ import { SummaryPanel } from "./SummaryPanel";
 import { MindMapPanel } from "./MindMapPanel";
 import { TranscriptPanel } from "./TranscriptPanel";
 import { QaPanel } from "./QaPanel";
-import { TabButton } from "../ui/TabButton";
+import { TabButton, TAB_ORDER } from "../ui/TabButton";
+import { Button } from "../ui/Button";
 import { buildSummaryExport } from "../../utils/summaryExport";
 import { FileText, Map as MapIcon, MessageSquareText } from "lucide-react";
 import "./SummaryPage.css";
@@ -71,6 +72,29 @@ export function SummaryPage({
   onAsk: (event: FormEvent<HTMLFormElement>) => void;
   onRetry: () => void;
 }) {
+  function handleTabKeyDown(event: KeyboardEvent) {
+    const currentIdx = TAB_ORDER.indexOf(activeTab);
+    let nextIdx: number;
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      nextIdx = (currentIdx + 1) % TAB_ORDER.length;
+    } else if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      nextIdx = (currentIdx - 1 + TAB_ORDER.length) % TAB_ORDER.length;
+    } else if (event.key === "Home") {
+      event.preventDefault();
+      nextIdx = 0;
+    } else if (event.key === "End") {
+      event.preventDefault();
+      nextIdx = TAB_ORDER.length - 1;
+    } else {
+      return;
+    }
+    onActiveTabChange(TAB_ORDER[nextIdx]);
+    const nextTab = document.getElementById(`tab-${TAB_ORDER[nextIdx]}`);
+    nextTab?.focus();
+  }
+
   if (!hasResultSurface) {
     return (
       <>
@@ -84,10 +108,10 @@ export function SummaryPage({
           <p>
             当前版本不保存历史记录，刷新或直接访问总结页时不会恢复上一次的结果。
           </p>
-          <button type="button" className="primary-button" onClick={onReset}>
+          <Button onClick={onReset}>
             <RefreshCw aria-hidden="true" size={16} />
             返回首页
-          </button>
+          </Button>
         </section>
       </>
     );
@@ -101,22 +125,21 @@ export function SummaryPage({
         <div className="report-heading">
           <div>
             <p className="eyebrow">视频智能分析报告</p>
-            <h2 id="report-title">{video?.title || "正在生成分析报告"}</h2>
+            <h2 id="report-title" tabIndex={-1}>{video?.title || "正在生成分析报告"}</h2>
           </div>
           <div className="report-actions">
-            <button
-              type="button"
-              className="soft-button"
+            <Button
+              variant="soft"
               disabled={!summaryMarkdown || !video}
               onClick={() => video && onCopy(buildSummaryExport(video, transcript, summaryMarkdown), "Markdown 总结已复制。")}
             >
               <Copy aria-hidden="true" size={16} />
               复制总结
-            </button>
-            <button type="button" className="primary-button" onClick={onReset}>
+            </Button>
+            <Button onClick={onReset}>
               <RefreshCw aria-hidden="true" size={16} />
               重新分析
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -126,10 +149,10 @@ export function SummaryPage({
               <strong>{retryableError.type === "asr" ? "视频转写失败" : "AI 分析服务暂时不可用"}</strong>
               <span>{retryableError.message}</span>
             </div>
-            <button type="button" className="primary-button compact-button" onClick={onRetry} disabled={isRunning}>
+            <Button size="compact" onClick={onRetry} disabled={isRunning}>
               <RefreshCw aria-hidden="true" size={16} />
               重新分析
-            </button>
+            </Button>
           </div>
         ) : null}
 
@@ -137,22 +160,22 @@ export function SummaryPage({
           <VideoPreviewPanel video={video} />
 
           <section className="analysis-panel" aria-label="内容分析">
-            <div className="tabs" role="tablist" aria-label="分析内容">
-              <TabButton activeTab={activeTab} value="summary" onChange={onActiveTabChange} icon={<Sparkles size={18} />}>
+            <div className="tabs" role="tablist" aria-label="分析内容" onKeyDown={handleTabKeyDown}>
+              <TabButton activeTab={activeTab} value="summary" onChange={onActiveTabChange} icon={<Sparkles size={18} />} onKeyNavigate={handleTabKeyDown}>
                 智能总结
               </TabButton>
-              <TabButton activeTab={activeTab} value="mindmap" onChange={onActiveTabChange} icon={<MapIcon size={18} />}>
+              <TabButton activeTab={activeTab} value="mindmap" onChange={onActiveTabChange} icon={<MapIcon size={18} />} onKeyNavigate={handleTabKeyDown}>
                 思维导图
               </TabButton>
-              <TabButton activeTab={activeTab} value="transcript" onChange={onActiveTabChange} icon={<FileText size={18} />}>
+              <TabButton activeTab={activeTab} value="transcript" onChange={onActiveTabChange} icon={<FileText size={18} />} onKeyNavigate={handleTabKeyDown}>
                 原文稿
               </TabButton>
-              <TabButton activeTab={activeTab} value="qa" onChange={onActiveTabChange} icon={<MessageSquareText size={18} />}>
+              <TabButton activeTab={activeTab} value="qa" onChange={onActiveTabChange} icon={<MessageSquareText size={18} />} onKeyNavigate={handleTabKeyDown}>
                 问答
               </TabButton>
             </div>
 
-            <div className="tab-body">
+            <div className="tab-body" role="tabpanel" id={`tabpanel-${activeTab}`} aria-labelledby={`tab-${activeTab}`} tabIndex={0}>
               {activeTab === "summary" ? (
                 <SummaryPanel
                   markdown={summaryMarkdown}
@@ -162,11 +185,12 @@ export function SummaryPage({
                 />
               ) : null}
               {activeTab === "mindmap" ? (
-                <MindMapPanel mindmap={mindmap} videoTitle={video?.title || "视频"} />
+                <MindMapPanel mindmap={mindmap} videoTitle={video?.title || "视频"} isRunning={isRunning} />
               ) : null}
               {activeTab === "transcript" ? (
                 <TranscriptPanel
                   transcript={transcript}
+                  isRunning={isRunning}
                   onCopy={(text) => onCopy(text, "原文稿已复制。")}
                 />
               ) : null}
@@ -176,6 +200,7 @@ export function SummaryPage({
                   messages={qaMessages}
                   question={qaQuestion}
                   isAsking={isAsking}
+                  isRunning={isRunning}
                   onQuestionChange={onQuestionChange}
                   onSubmit={onAsk}
                 />

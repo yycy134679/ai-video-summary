@@ -18,6 +18,8 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+
+  /* ---- Legacy tokens (kept for backward compat) ---- */
   --ink: #071b3a;
   --muted: #5d6678;
   --primary: #004aad;
@@ -34,7 +36,151 @@
   --premium: #f0a72f;
   --premium-dark: #8a5a00;
   --hero-ink: #03152f;
+
+  /* ---- Gradient blue tokens ---- */
+  --gradient-blue-start: #1f6fff;
+  --gradient-blue-mid: #0052cc;
+  --gradient-blue-end: #003d9b;
+  --gradient-blue: linear-gradient(135deg, var(--gradient-blue-start), var(--gradient-blue-mid) 62%, var(--gradient-blue-end));
+
+  /* ---- Text color tokens ---- */
+  --text-primary: #071b3a;
+  --text-heading: #071b3a;
+  --text-body: #303849;
+  --text-secondary: #374860;
+  --text-muted: #5d6678;
+  --text-faint: #747f94;
+  --text-navy: #1a2a44;
+  --text-slate: #4d5a70;
+
+  /* ---- Surface tokens ---- */
+  --surface-page: #f5f7fb;
+  --surface-card: rgba(255, 255, 255, 0.92);
+  --surface-input: #ffffff;
+  --surface-hover: #f7faff;
+  --surface-highlight: #f5f9ff;
+  --surface-code: #eef5ff;
+  --surface-message-error: #fff1f0;
+  --surface-message-info: #edf4ff;
+  --surface-message-warning: #fff8e6;
+
+  /* ---- Border tokens ---- */
+  --border-card: rgba(201, 214, 234, 0.74);
+  --border-input: rgba(171, 192, 226, 0.82);
+  --border-focus-ring: rgba(0, 82, 204, 0.2);
+  --border-primary-soft: rgba(0, 74, 173, 0.16);
+  --border-primary-light: rgba(31, 111, 255, 0.38);
+
+  /* ---- Shadow tokens ---- */
+  --shadow-card: 0 26px 70px rgba(22, 66, 128, 0.09);
+  --shadow-panel: 0 18px 44px rgba(14, 37, 70, 0.08);
+  --shadow-button-primary: 0 15px 30px rgba(0, 82, 204, 0.22);
+  --shadow-button-old: 0 12px 24px rgba(0, 74, 173, 0.18);
+  --shadow-input-focus: 0 0 0 4px rgba(31, 111, 255, 0.14);
+  --shadow-input-focus-sm: 0 0 0 3px rgba(0, 74, 173, 0.12);
+  --shadow-hero-input: 0 22px 58px rgba(31, 111, 255, 0.16);
+  --shadow-brand-mark: 0 12px 28px rgba(0, 82, 204, 0.24);
+
+  /* ---- Radius tokens ---- */
+  --radius-sm: 5px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 18px;
+  --radius-pill: 999px;
+
+  /* ---- Spacing tokens (8px scale) ---- */
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 8px;
+  --space-4: 12px;
+  --space-5: 16px;
+  --space-6: 20px;
+  --space-7: 24px;
+  --space-8: 28px;
+  --space-9: 32px;
+  --space-10: 40px;
+  --space-11: 48px;
+  --space-12: 56px;
+  --space-13: 64px;
+  --space-14: 72px;
+  --space-15: 80px;
+
+  /* ---- Motion tokens ---- */
+  --duration-fast: 0.18s;
+  --duration-normal: 0.85s;
+  --duration-slow: 1.35s;
+  --ease-default: ease;
+  --ease-in-out: ease-in-out;
+
+  /* ---- Font weight tokens ---- */
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 650;
+  --font-bold: 700;
+  --font-heavy: 750;
+  --font-extrabold: 800;
+  --font-black: 850;
+  --font-ultra: 900;
+  --font-heavy-title: 950;
+
+  /* ---- Font size tokens ---- */
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-md: 15px;
+  --text-lg: 16px;
+  --text-xl: 18px;
+  --text-2xl: 20px;
+  --text-3xl: 22px;
+  --text-4xl: 26px;
+  --text-5xl: 38px;
+  --text-6xl: 45px;
+
+  /* ---- Line height tokens ---- */
+  --leading-tight: 1.18;
+  --leading-snug: 1.35;
+  --leading-normal: 1.55;
+  --leading-relaxed: 1.65;
+  --leading-loose: 1.78;
 }
+
+/* ===== Dark Theme (placeholder — fill values to enable) ===== */
+/*
+[data-theme="dark"] {
+  --ink: #e2e8f0;
+  --muted: #94a3b8;
+  --primary: #60a5fa;
+  --primary-dark: #93bbfd;
+  --primary-soft: #1e293b;
+  --surface: #1e293b;
+  --surface-soft: #0f172a;
+  --line: #334155;
+  --line-strong: #475569;
+  --shadow: 0 18px 44px rgba(0, 0, 0, 0.32);
+  --text-primary: #e2e8f0;
+  --text-heading: #f1f5f9;
+  --text-body: #cbd5e1;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-faint: #64748b;
+  --text-navy: #cbd5e1;
+  --text-slate: #94a3b8;
+  --surface-page: #0f172a;
+  --surface-card: rgba(30, 41, 59, 0.92);
+  --surface-input: #1e293b;
+  --surface-highlight: #1e293b;
+  --surface-code: #1e3a5f;
+  --surface-message-error: #3b1219;
+  --surface-message-info: #0f2040;
+  --surface-message-warning: #3b2e0f;
+  --border-card: rgba(71, 85, 105, 0.74);
+  --border-input: rgba(71, 85, 105, 0.82);
+  color: #e2e8f0;
+  background: #0f172a;
+}
+*/
 
 /* ===== Global Reset ===== */
 * {
@@ -70,6 +216,19 @@ a {
   text-decoration: none;
 }
 
+/* ===== Accessibility ===== */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* ===== App Shell ===== */
 .app-shell {
   min-height: 100vh;
@@ -87,67 +246,6 @@ a {
   color: var(--primary);
   font-size: 13px;
   font-weight: 800;
-}
-
-/* ===== Shared Buttons ===== */
-.ghost-button,
-.primary-button,
-.soft-button,
-.summary-form button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 42px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  font-weight: 800;
-  transition:
-    background 0.18s ease,
-    border-color 0.18s ease,
-    color 0.18s ease,
-    transform 0.18s ease,
-    box-shadow 0.18s ease;
-}
-
-.ghost-button {
-  padding: 0 14px;
-  color: #465164;
-  background: #ffffff;
-  border-color: var(--line);
-}
-
-.soft-button {
-  padding: 0 16px;
-  color: var(--primary);
-  background: #eef4ff;
-  border-color: rgba(0, 74, 173, 0.14);
-}
-
-.primary-button,
-.summary-form button {
-  padding: 0 20px;
-  color: #ffffff;
-  background: var(--primary);
-  box-shadow: 0 12px 24px rgba(0, 74, 173, 0.18);
-}
-
-.compact-button {
-  min-height: 34px;
-  padding: 0 12px;
-  font-size: 13px;
-}
-
-.ghost-button:hover,
-.soft-button:hover:not(:disabled),
-.primary-button:hover:not(:disabled),
-.summary-form button:hover:not(:disabled) {
-  transform: translateY(-1px);
-}
-
-.primary-button:hover:not(:disabled),
-.summary-form button:hover:not(:disabled) {
-  background: var(--primary-dark);
 }
 
 /* ===== Shared UI Button System ===== */
@@ -174,7 +272,7 @@ a {
 }
 
 .ui-button-sm {
-  min-height: 36px;
+  min-height: 44px;
   padding: 0 13px;
   font-size: 13px;
 }
@@ -197,17 +295,11 @@ a {
   border-color: rgba(195, 205, 222, 0.82);
 }
 
-.ui-button:hover:not(:disabled),
-.primary-button:hover:not(:disabled),
-.soft-button:hover:not(:disabled),
-.ghost-button:hover:not(:disabled) {
+.ui-button:hover:not(:disabled) {
   transform: translateY(-1px);
 }
 
 .ui-button:focus-visible,
-.primary-button:focus-visible,
-.soft-button:focus-visible,
-.ghost-button:focus-visible,
 .tab-button:focus-visible,
 .origin-link:focus-visible {
   outline: 3px solid rgba(0, 82, 204, 0.2);

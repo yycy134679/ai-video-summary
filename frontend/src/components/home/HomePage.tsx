@@ -119,12 +119,12 @@ export function HomePage({
             全新升级：DeepSeek V4 驱动，更准确，更智能
           </div>
 
-          <h1 id="home-title">
+          <h1 id="home-title" tabIndex={-1}>
             <span>粘贴视频链接，AI 帮你提炼重点</span>
             <span>生成摘要、整理要点</span>
           </h1>
           <p className="hero-disclaimer">
-            AI 可以提炼要点，但无法替你成长——真正的收获，永远来自你自己的思考。
+            AI 可以提炼要点，但无法替你成长。真正的收获，永远来自你自己的思考。
           </p>
 
           <form className="hero-form" onSubmit={onSubmit}>
@@ -338,10 +338,10 @@ function ProductPreview() {
 
       <div className="preview-result-card">
         <div className="preview-tabs" aria-hidden="true">
-          <span className="active">AI 总结</span>
+          <span className="active">智能总结</span>
           <span>思维导图</span>
-          <span>字幕</span>
-          <span>智能问答</span>
+          <span>原文稿</span>
+          <span>问答</span>
         </div>
         <div className="preview-columns preview-columns-single">
           <div>

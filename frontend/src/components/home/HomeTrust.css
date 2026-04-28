@@ -1,0 +1,46 @@
+/* @scope HomeTrust */
+
+.trust-strip {
+  padding: 18px 0 44px;
+  background: #ffffff;
+}
+
+.trust-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(18px, 4vw, 46px);
+  color: #7b879a;
+}
+
+.trust-inner div {
+  margin-right: 8px;
+  text-align: left;
+}
+
+.trust-inner strong {
+  display: block;
+  color: #233655;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.trust-inner div span {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.trust-inner > span {
+  font-size: 16px;
+  font-weight: 950;
+  letter-spacing: -0.04em;
+  opacity: 0.78;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .trust-inner {
+    flex-wrap: wrap;
+  }
+}

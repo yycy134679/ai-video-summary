@@ -5,7 +5,7 @@
   overflow: hidden;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow);
 }
 
@@ -28,8 +28,8 @@
   color: #424b5e;
   background: transparent;
   border: 0;
-  font-size: 16px;
-  font-weight: 850;
+  font-size: var(--text-lg);
+  font-weight: var(--font-black);
   cursor: pointer;
 }
 
@@ -43,40 +43,47 @@
 
 .tab-button-active::after {
   position: absolute;
-  right: 12px;
+  right: var(--space-4);
   bottom: 0;
-  left: 12px;
+  left: var(--space-4);
   height: 3px;
   content: "";
   background: var(--primary);
-  border-radius: 999px 999px 0 0;
+  border-radius: var(--radius-pill) var(--radius-pill) 0 0;
 }
 
 .tab-body {
   min-height: 540px;
-  padding: 28px 28px 30px;
+  padding: var(--space-8) var(--space-8) 30px;
+  outline: none;
+}
+
+.tab-body:focus-visible {
+  outline: 3px solid var(--border-focus-ring);
+  outline-offset: -3px;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
 }
 
 /* Responsive */
 @media (max-width: 760px) {
   .tabs {
     grid-template-columns: 1fr;
-    padding: 8px;
+    padding: var(--space-3);
   }
 
   .tab-button {
     justify-content: flex-start;
     min-height: 48px;
-    padding: 0 12px;
+    padding: 0 var(--space-4);
   }
 
   .tab-button-active::after {
     right: auto;
-    bottom: 8px;
+    bottom: var(--space-3);
     left: 0;
     width: 3px;
     height: 32px;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
   }
 
   .tab-body {
