@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from types import ModuleType as _ModuleType
 from urllib.parse import urlparse
 
 from backend.app.models import Quality, QualityOption, VideoInfo
@@ -20,22 +21,28 @@ def validate_video_url(url: str) -> str:
 
 
 def extract_video_info(url: str) -> VideoInfo:
-    if douyin_provider.is_douyin_input(url):
-        return douyin_provider.extract_video_info(url)
-    normalized_url = validate_video_url(url)
-    if bilibili_provider.is_bilibili_input(normalized_url):
-        return bilibili_provider.extract_video_info(normalized_url)
-    return yt_dlp_provider.extract_video_info(normalized_url)
+    provider, resolved_url = _resolve_provider(url)
+    return provider.extract_video_info(resolved_url)
 
 
 def download_video(url: str, quality: Quality) -> DownloadResult:
-    if douyin_provider.is_douyin_input(url):
-        return douyin_provider.download_video(url, quality)
-    normalized_url = validate_video_url(url)
-    if bilibili_provider.is_bilibili_input(normalized_url):
-        return bilibili_provider.download_video(normalized_url, quality)
-    return yt_dlp_provider.download_video(normalized_url, quality)
+    provider, resolved_url = _resolve_provider(url)
+    return provider.download_video(resolved_url, quality)
 
 
 def build_quality_options(formats: list[dict]) -> list[QualityOption]:
     return yt_dlp_provider.build_quality_options(formats)
+
+
+def _resolve_provider(url: str) -> tuple[_ModuleType, str]:
+    """根据 URL 匹配返回对应的 Provider 模块和标准化 URL。"""
+
+    if douyin_provider.is_douyin_input(url):
+        return douyin_provider, url
+
+    normalized_url = validate_video_url(url)
+
+    if bilibili_provider.is_bilibili_input(normalized_url):
+        return bilibili_provider, normalized_url
+
+    return yt_dlp_provider, normalized_url

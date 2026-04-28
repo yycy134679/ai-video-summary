@@ -9,8 +9,9 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from backend.app.env_config import get_config_value
+from backend.app.env_config import get_config_value_int
 from backend.app.models import TranscriptTaskInfo
+from backend.app.providers._provider_utils import run_ffmpeg_subprocess
 from backend.app.providers.base import DownloadResult, MissingFfmpegError, VideoServiceError
 from backend.app.stepaudio_client import StepAudioError, stepaudio_configured, transcribe_audio_file
 from backend.app.video_service import download_video
@@ -21,20 +22,9 @@ DEFAULT_MAX_STEP_AUDIO_REQUEST_BYTES = 39 * 1024 * 1024
 DEFAULT_TASK_TTL_SECONDS = 24 * 60 * 60
 
 
-def _int_env(name: str, default: int) -> int:
-    raw_value = get_config_value(name)
-    if not raw_value:
-        return default
-    try:
-        value = int(raw_value)
-    except ValueError:
-        return default
-    return value if value > 0 else default
-
-
 _tasks: dict[str, dict[str, Any]] = {}
 _tasks_lock = threading.Lock()
-_transcribe_semaphore = threading.Semaphore(_int_env("STEP_ASR_MAX_CONCURRENT_TASKS", 1))
+_transcribe_semaphore = threading.Semaphore(get_config_value_int("STEP_ASR_MAX_CONCURRENT_TASKS", 1))
 
 
 def create_transcript_task(url: str, duration: int | None = None) -> TranscriptTaskInfo:
@@ -142,7 +132,7 @@ def _split_audio_file(path: Path, max_request_bytes: int) -> list[Path]:
         output_dir = path.parent / f"asr-segments-{uuid.uuid4().hex}"
         output_dir.mkdir(parents=True, exist_ok=False)
         output_pattern = output_dir / "segment-%03d.mp3"
-        _run_ffmpeg(
+        run_ffmpeg_subprocess(
             [
                 "ffmpeg",
                 "-y",
@@ -218,26 +208,6 @@ def _initial_segment_time_seconds(size: int, duration: float, max_request_bytes:
     return max(10, int(safe_duration))
 
 
-def _run_ffmpeg(args: list[str], message: str) -> None:
-    try:
-        completed = subprocess.run(
-            args,
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=300,
-        )
-    except OSError as exc:
-        raise VideoServiceError(f"{message}：无法启动 ffmpeg。{exc}") from exc
-    except subprocess.TimeoutExpired as exc:
-        raise VideoServiceError(f"{message}：ffmpeg 处理超时。") from exc
-
-    if completed.returncode != 0:
-        detail = (completed.stderr or completed.stdout or "").strip().splitlines()[-1:]
-        suffix = f"：{detail[0]}" if detail else "。"
-        raise VideoServiceError(f"{message}{suffix}")
-
-
 def _get_task_row(task_id: str) -> dict[str, Any] | None:
     with _tasks_lock:
         row = _tasks.get(task_id)
@@ -276,22 +246,22 @@ def _prune_expired_tasks() -> None:
 
 
 def _max_duration_seconds() -> int:
-    minutes = _int_env("STEP_ASR_MAX_DURATION_MINUTES", 0)
+    minutes = get_config_value_int("STEP_ASR_MAX_DURATION_MINUTES", 0)
     if minutes > 0:
         return minutes * 60
-    return _int_env("STEP_ASR_MAX_DURATION_SECONDS", DEFAULT_MAX_DURATION_SECONDS)
+    return get_config_value_int("STEP_ASR_MAX_DURATION_SECONDS", DEFAULT_MAX_DURATION_SECONDS)
 
 
 def _max_stepaudio_request_bytes() -> int:
-    megabytes = _int_env("STEP_ASR_MAX_REQUEST_FILE_MB", 0)
+    megabytes = get_config_value_int("STEP_ASR_MAX_REQUEST_FILE_MB", 0)
     if megabytes > 0:
         return min(megabytes * 1024 * 1024, DEFAULT_MAX_STEP_AUDIO_REQUEST_BYTES)
-    configured_bytes = _int_env("STEP_ASR_MAX_REQUEST_FILE_BYTES", DEFAULT_MAX_STEP_AUDIO_REQUEST_BYTES)
+    configured_bytes = get_config_value_int("STEP_ASR_MAX_REQUEST_FILE_BYTES", DEFAULT_MAX_STEP_AUDIO_REQUEST_BYTES)
     return min(configured_bytes, DEFAULT_MAX_STEP_AUDIO_REQUEST_BYTES)
 
 
 def _task_ttl_seconds() -> int:
-    return _int_env("STEP_ASR_TASK_TTL_SECONDS", DEFAULT_TASK_TTL_SECONDS)
+    return get_config_value_int("STEP_ASR_TASK_TTL_SECONDS", DEFAULT_TASK_TTL_SECONDS)
 
 
 def _clear_tasks_for_tests() -> None:

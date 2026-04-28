@@ -14,6 +14,13 @@ from urllib.parse import parse_qs, urlparse
 import httpx
 
 from backend.app.models import Quality, QualityOption, VideoInfo
+from backend.app.providers._provider_utils import (
+    build_friendly_http_error,
+    extract_first_url,
+    is_platform_url,
+    safe_filename_stem,
+    validate_content_type,
+)
 from backend.app.providers.base import DownloadResult, VideoServiceError
 
 
@@ -35,7 +42,6 @@ class DouyinMedia:
 
 DOUYIN_HOST_SUFFIXES = ("douyin.com", "iesdouyin.com")
 ITEM_INFO_API = "https://www.iesdouyin.com/web/api/v2/aweme/iteminfo/"
-URL_PATTERN = re.compile(r"https?://[^\s]+", re.IGNORECASE)
 DEFAULT_TIMEOUT = httpx.Timeout(connect=8.0, read=25.0, write=8.0, pool=8.0)
 DEFAULT_HEADERS = {
     "User-Agent": (
@@ -59,10 +65,10 @@ MOBILE_HEADERS = {
 
 def is_douyin_input(value: str) -> bool:
     try:
-        candidate = extract_first_url(value)
+        candidate = extract_first_url(value, DouyinProviderError, "请输入有效的抖音公开视频链接。")
     except DouyinProviderError:
         return False
-    return _is_douyin_url(candidate)
+    return is_platform_url(candidate, DOUYIN_HOST_SUFFIXES)
 
 
 def extract_video_info(value: str) -> VideoInfo:
@@ -101,20 +107,13 @@ def download_video(value: str, quality: Quality) -> DownloadResult:
         return _download_media(
             media_url=media_url,
             temp_dir=temp_dir,
-            filename_stem=_safe_filename_stem(media.title, media.video_id),
+            filename_stem=safe_filename_stem(media.title, f"douyin-{media.video_id}"),
             default_extension=default_extension,
             expected_types=expected_types,
         )
     except Exception:
         shutil.rmtree(temp_dir, ignore_errors=True)
         raise
-
-
-def extract_first_url(value: str) -> str:
-    match = URL_PATTERN.search(value.strip())
-    if not match:
-        raise DouyinProviderError("请输入有效的抖音公开视频链接。")
-    return match.group(0).strip().strip('"').strip("'").rstrip(").,;!?")
 
 
 def extract_video_id(value: str) -> str:
@@ -181,8 +180,8 @@ def build_media_from_item(item: dict[str, Any], resolved_url: str, video_id: str
 
 
 def _resolve_media(value: str) -> DouyinMedia:
-    share_url = extract_first_url(value)
-    if not _is_douyin_url(share_url):
+    share_url = extract_first_url(value, DouyinProviderError, "请输入有效的抖音公开视频链接。")
+    if not is_platform_url(share_url, DOUYIN_HOST_SUFFIXES):
         raise DouyinProviderError("该链接不是支持的抖音地址。")
 
     try:
@@ -200,7 +199,7 @@ def _resolve_media(value: str) -> DouyinMedia:
             if not item:
                 item = _fetch_item_info_from_share_page(client, resolved_url, video_id)
     except httpx.HTTPStatusError as exc:
-        raise DouyinProviderError(_friendly_http_error(exc)) from exc
+        raise DouyinProviderError(build_friendly_http_error(exc, "抖音")) from exc
     except httpx.HTTPError as exc:
         raise DouyinProviderError(f"抖音解析失败：网络请求异常，请稍后重试。{exc}") from exc
 
@@ -389,7 +388,7 @@ def _download_media(
         with client.stream("GET", media_url) as response:
             response.raise_for_status()
             content_type = response.headers.get("Content-Type", "").split(";", maxsplit=1)[0].strip()
-            _validate_content_type(content_type, expected_types)
+            validate_content_type(content_type, expected_types, DouyinProviderError)
             extension = (
                 mimetypes.guess_extension(content_type)
                 if content_type != "application/octet-stream"
@@ -413,14 +412,6 @@ def _download_media(
         filename=output_file.name,
         media_type=content_type or "application/octet-stream",
     )
-
-
-def _validate_content_type(content_type: str, expected_types: tuple[str, ...]) -> None:
-    if not content_type:
-        raise DouyinProviderError("抖音下载失败：媒体响应缺少 Content-Type。")
-    if any(content_type.startswith(expected_type) for expected_type in expected_types):
-        return
-    raise DouyinProviderError(f"抖音下载失败：媒体响应类型异常（{content_type}）。")
 
 
 def _first_usable_url(urls: list[str]) -> str | None:
@@ -462,12 +453,6 @@ def _extract_media_urls(value: Any) -> list[str]:
     return []
 
 
-def _is_douyin_url(value: str) -> bool:
-    parsed = urlparse(value)
-    host = (parsed.hostname or "").lower()
-    return any(host == suffix or host.endswith(f".{suffix}") for suffix in DOUYIN_HOST_SUFFIXES)
-
-
 def _canonical_webpage_url(resolved_url: str, video_id: str) -> str:
     parsed = urlparse(resolved_url)
     if parsed.hostname and parsed.hostname.endswith("douyin.com"):
@@ -486,16 +471,3 @@ def _duration_seconds(video: dict[str, Any]) -> int | None:
     return value // 1000 if value > 1000 else value
 
 
-def _safe_filename_stem(title: str, video_id: str) -> str:
-    cleaned = re.sub(r'[\\/:*?"<>|\r\n]+', " ", title).strip()
-    cleaned = re.sub(r"\s+", " ", cleaned)[:120].strip()
-    return cleaned or f"douyin-{video_id}"
-
-
-def _friendly_http_error(exc: httpx.HTTPStatusError) -> str:
-    status_code = exc.response.status_code
-    if status_code in {403, 412, 429}:
-        return "抖音解析失败：平台限制当前服务器请求，可能触发风控、频率限制或地区/IP 限制。"
-    if status_code == 404:
-        return "抖音解析失败：未找到视频信息，链接可能失效或接口已变更。"
-    return f"抖音解析失败：平台接口返回 HTTP {status_code}。"

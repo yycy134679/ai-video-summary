@@ -27,6 +27,7 @@ import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { Input } from "../ui/Input";
 import { Textarea } from "../ui/Textarea";
+import "./HomePage.css";
 
 type HomePageProps = {
   url: string;
@@ -119,13 +120,9 @@ export function HomePage({
           </div>
 
           <h1 id="home-title">
-            AI 视频总结，节省 <span>80%</span> 时间
+            <span>粘贴视频链接，AI 帮你提炼重点</span>
+            <span>生成摘要、整理要点</span>
           </h1>
-          <p className="hero-subtitle">
-            粘贴视频链接，AI 帮你提炼重点、生成摘要、整理要点
-            <br />
-            让你不再浪费时间在冗长的视频上
-          </p>
           <p className="hero-disclaimer">
             AI 可以提炼要点，但无法替你成长——真正的收获，永远来自你自己的思考。
           </p>

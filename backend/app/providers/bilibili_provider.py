@@ -4,7 +4,6 @@ import json
 import mimetypes
 import re
 import shutil
-import subprocess
 import tempfile
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -14,6 +13,21 @@ from urllib.parse import urlparse
 import httpx
 
 from backend.app.models import Quality, QualityOption, SubtitleCue, SubtitleInfo, SubtitleStatus, VideoInfo
+from backend.app.providers._provider_utils import (
+    URL_PATTERN,
+    as_list,
+    build_friendly_http_error,
+    codec_rank,
+    extract_first_url,
+    height_from_quality_id,
+    is_platform_url,
+    normalize_url,
+    run_ffmpeg_subprocess,
+    safe_filename_stem,
+    safe_to_float,
+    safe_to_int,
+    validate_content_type,
+)
 from backend.app.providers.base import DownloadResult, MissingFfmpegError, VideoServiceError
 from backend.app.providers.bilibili_wbi import get_wbi_keys, sign_params
 
@@ -57,7 +71,6 @@ class BilibiliSubtitleResult:
 
 
 BILIBILI_HOST_SUFFIXES = ("bilibili.com", "b23.tv")
-URL_PATTERN = re.compile(r"https?://[^\s]+", re.IGNORECASE)
 DEFAULT_TIMEOUT = httpx.Timeout(connect=8.0, read=30.0, write=8.0, pool=8.0)
 DEFAULT_HEADERS = {
     "User-Agent": (
@@ -80,10 +93,10 @@ _DEVICE_FINGERPRINT_PARAMS = {
 
 def is_bilibili_input(value: str) -> bool:
     try:
-        candidate = extract_first_url(value)
+        candidate = extract_first_url(value, BilibiliProviderError, "请输入有效的 B 站公开视频链接。")
     except BilibiliProviderError:
         return False
-    return _is_bilibili_url(candidate)
+    return is_platform_url(candidate, BILIBILI_HOST_SUFFIXES)
 
 
 def extract_video_info(value: str) -> VideoInfo:
@@ -130,13 +143,6 @@ def download_video(value: str, quality: Quality) -> DownloadResult:
         raise
 
 
-def extract_first_url(value: str) -> str:
-    match = URL_PATTERN.search(value.strip())
-    if not match:
-        raise BilibiliProviderError("请输入有效的 B 站公开视频链接。")
-    return match.group(0).strip().strip('"').strip("'").rstrip(").,;!?")
-
-
 def build_media_from_page(
     html: str,
     webpage_url: str,
@@ -151,9 +157,9 @@ def build_media_from_page(
 
     data = playinfo.get("data") if isinstance(playinfo.get("data"), dict) else {}
     dash = data.get("dash") if isinstance(data.get("dash"), dict) else {}
-    videos = [_build_stream(item) for item in _as_list(dash.get("video"))]
+    videos = [_build_stream(item) for item in as_list(dash.get("video"))]
     videos += _build_progressive_streams(data)
-    audios = [_build_stream(item) for item in _as_list(dash.get("audio"))]
+    audios = [_build_stream(item) for item in as_list(dash.get("audio"))]
     videos = [item for item in videos if item.url]
     audios = [item for item in audios if item.url]
 
@@ -164,9 +170,9 @@ def build_media_from_page(
     owner = video_data.get("owner") if isinstance(video_data.get("owner"), dict) else {}
     video_id = _extract_video_id(video_data, webpage_url)
 
-    duration = _to_int(video_data.get("duration"))
+    duration = safe_to_int(video_data.get("duration"))
     if duration is None:
-        duration_ms = _to_int(data.get("timelength"))
+        duration_ms = safe_to_int(data.get("timelength"))
         duration = duration_ms // 1000 if duration_ms else None
 
     return BilibiliMedia(
@@ -174,7 +180,7 @@ def build_media_from_page(
         title=str(video_data.get("title") or _extract_title_from_html(html) or f"B 站视频 {video_id}"),
         uploader=owner.get("name") if isinstance(owner.get("name"), str) else None,
         duration=duration,
-        thumbnail=_normalize_url(video_data.get("pic")),
+        thumbnail=normalize_url(video_data.get("pic")),
         webpage_url=webpage_url,
         videos=videos,
         audios=audios,
@@ -230,8 +236,8 @@ def ensure_ffmpeg() -> None:
 
 
 def _resolve_media(value: str) -> BilibiliMedia:
-    page_url = extract_first_url(value)
-    if not _is_bilibili_url(page_url):
+    page_url = extract_first_url(value, BilibiliProviderError, "请输入有效的 B 站公开视频链接。")
+    if not is_platform_url(page_url, BILIBILI_HOST_SUFFIXES):
         raise BilibiliProviderError("该链接不是支持的 B 站地址。")
 
     try:
@@ -244,7 +250,7 @@ def _resolve_media(value: str) -> BilibiliMedia:
             response = client.get(page_url)
             response.raise_for_status()
             resolved_url = str(response.url)
-            if not _is_bilibili_url(resolved_url):
+            if not is_platform_url(resolved_url, BILIBILI_HOST_SUFFIXES):
                 raise BilibiliProviderError("B 站短链跳转后的地址不是支持的视频页面。")
 
             html = response.text or ""
@@ -263,7 +269,7 @@ def _resolve_media(value: str) -> BilibiliMedia:
                 subtitle_message=subtitle_result.message,
             )
     except httpx.HTTPStatusError as exc:
-        raise BilibiliProviderError(_friendly_http_error(exc)) from exc
+        raise BilibiliProviderError(build_friendly_http_error(exc, "B 站")) from exc
     except httpx.HTTPError as exc:
         raise BilibiliProviderError(f"B 站解析失败：网络请求异常，请稍后重试。{exc}") from exc
 
@@ -274,12 +280,12 @@ def _build_stream(item: Any) -> BilibiliStream:
 
     return BilibiliStream(
         url=str(item.get("baseUrl") or item.get("base_url") or ""),
-        height=_to_int(item.get("height")),
-        width=_to_int(item.get("width")),
-        bandwidth=_to_int(item.get("bandwidth")),
+        height=safe_to_int(item.get("height")),
+        width=safe_to_int(item.get("width")),
+        bandwidth=safe_to_int(item.get("bandwidth")),
         codecs=str(item.get("codecs")) if item.get("codecs") else None,
         mime_type=str(item.get("mimeType") or item.get("mime_type")) if item.get("mimeType") or item.get("mime_type") else None,
-        quality_id=_to_int(item.get("id")),
+        quality_id=safe_to_int(item.get("id")),
     )
 
 
@@ -361,7 +367,7 @@ def _fetch_subtitle_result(
     try:
         player_data = _fetch_player_wbi_v2_data(client, webpage_url, bvid, cid)
         subtitle_data = player_data.get("subtitle") if isinstance(player_data.get("subtitle"), dict) else {}
-        subtitle_items = _as_list(subtitle_data.get("subtitles"))
+        subtitle_items = as_list(subtitle_data.get("subtitles"))
         if not subtitle_items:
             if player_data.get("need_login_subtitle") is True:
                 return BilibiliSubtitleResult([], "unavailable", "当前视频字幕需要登录后访问。")
@@ -371,7 +377,7 @@ def _fetch_subtitle_result(
         for item in subtitle_items:
             if not isinstance(item, dict):
                 continue
-            subtitle_url = _normalize_url(item.get("subtitle_url"))
+            subtitle_url = normalize_url(item.get("subtitle_url"))
             language = str(item.get("lan") or "").strip()
             language_label = str(item.get("lan_doc") or language or "未知字幕").strip()
             if not subtitle_url or not language:
@@ -462,13 +468,13 @@ def _fetch_subtitle_cues(
     except ValueError as exc:
         raise BilibiliProviderError("B 站字幕文件不是有效 JSON。") from exc
 
-    body = _as_list(payload.get("body")) if isinstance(payload, dict) else []
+    body = as_list(payload.get("body")) if isinstance(payload, dict) else []
     cues: list[SubtitleCue] = []
     for item in body:
         if not isinstance(item, dict):
             continue
-        start = _to_float(item.get("from"))
-        end = _to_float(item.get("to"))
+        start = safe_to_float(item.get("from"))
+        end = safe_to_float(item.get("to"))
         text = str(item.get("content") or "").strip()
         if start is None or end is None or not text:
             continue
@@ -516,9 +522,9 @@ def _merge_progressive_data(target: dict[str, Any], progressive_data: dict[str, 
 
 
 def _build_progressive_streams(data: dict[str, Any]) -> list[BilibiliStream]:
-    quality_id = _to_int(data.get("progressive_quality") or data.get("quality"))
+    quality_id = safe_to_int(data.get("progressive_quality") or data.get("quality"))
     streams: list[BilibiliStream] = []
-    for item in _as_list(data.get("durl")):
+    for item in as_list(data.get("durl")):
         if not isinstance(item, dict):
             continue
         url = str(item.get("url") or "")
@@ -527,9 +533,9 @@ def _build_progressive_streams(data: dict[str, Any]) -> list[BilibiliStream]:
         streams.append(
             BilibiliStream(
                 url=url,
-                height=_height_from_quality_id(quality_id),
+                height=height_from_quality_id(quality_id),
                 width=None,
-                bandwidth=_to_int(item.get("size")),
+                bandwidth=safe_to_int(item.get("size")),
                 codecs=None,
                 mime_type="video/mp4",
                 quality_id=quality_id,
@@ -558,7 +564,7 @@ def _select_video(media: BilibiliMedia, quality: Quality) -> BilibiliStream | No
         key=lambda item: (
             item.height or 0,
             item.bandwidth or 0,
-            _codec_rank(item.codecs),
+            codec_rank(item.codecs),
         ),
     )
 
@@ -576,12 +582,12 @@ def _download_and_merge_video(
     quality: Quality,
     temp_dir: Path,
 ) -> DownloadResult:
-    filename_stem = _safe_filename_stem(media.title, media.video_id)
+    filename_stem = safe_filename_stem(media.title, f"bilibili-{media.video_id}")
     video_file = _download_stream(media, video.url, temp_dir / "video.m4s", ("video/", "application/octet-stream"))
     audio_file = _download_stream(media, audio.url, temp_dir / "audio.m4s", ("audio/", "video/", "application/octet-stream"))
     output_file = temp_dir / f"{filename_stem}-{quality}.mp4"
 
-    _run_ffmpeg(
+    run_ffmpeg_subprocess(
         [
             "ffmpeg",
             "-y",
@@ -596,6 +602,7 @@ def _download_and_merge_video(
             str(output_file),
         ],
         "B 站视频合并失败",
+        BilibiliProviderError,
     )
 
     return DownloadResult(
@@ -612,7 +619,7 @@ def _download_single_video(
     quality: Quality,
     temp_dir: Path,
 ) -> DownloadResult:
-    filename_stem = _safe_filename_stem(media.title, media.video_id)
+    filename_stem = safe_filename_stem(media.title, f"bilibili-{media.video_id}")
     output_file = temp_dir / f"{filename_stem}-{quality}.mp4"
     downloaded_file = _download_stream(
         media,
@@ -629,11 +636,11 @@ def _download_single_video(
 
 
 def _download_audio(media: BilibiliMedia, audio: BilibiliStream, temp_dir: Path) -> DownloadResult:
-    filename_stem = _safe_filename_stem(media.title, media.video_id)
+    filename_stem = safe_filename_stem(media.title, f"bilibili-{media.video_id}")
     audio_file = _download_stream(media, audio.url, temp_dir / "audio.m4s", ("audio/", "video/", "application/octet-stream"))
     output_file = temp_dir / f"{filename_stem}-audio.mp3"
 
-    _run_ffmpeg(
+    run_ffmpeg_subprocess(
         [
             "ffmpeg",
             "-y",
@@ -647,6 +654,7 @@ def _download_audio(media: BilibiliMedia, audio: BilibiliStream, temp_dir: Path)
             str(output_file),
         ],
         "B 站音频导出失败",
+        BilibiliProviderError,
     )
 
     return DownloadResult(
@@ -679,7 +687,7 @@ def _download_stream(
             with client.stream("GET", url) as response:
                 response.raise_for_status()
                 content_type = response.headers.get("Content-Type", "").split(";", maxsplit=1)[0].strip()
-                _validate_content_type(content_type, expected_types)
+                validate_content_type(content_type, expected_types, BilibiliProviderError)
                 temp_file = output_file.with_suffix(f"{output_file.suffix}.part")
                 try:
                     with temp_file.open("wb") as file_obj:
@@ -690,30 +698,10 @@ def _download_stream(
                 except OSError as exc:
                     raise BilibiliProviderError(f"B 站下载失败：写入临时文件失败。{exc}") from exc
         except httpx.HTTPStatusError as exc:
-            raise BilibiliProviderError(_friendly_http_error(exc)) from exc
+            raise BilibiliProviderError(build_friendly_http_error(exc, "B 站")) from exc
         except httpx.HTTPError as exc:
             raise BilibiliProviderError(f"B 站下载失败：网络请求异常，请稍后重试。{exc}") from exc
     return output_file
-
-
-def _run_ffmpeg(args: list[str], message: str) -> None:
-    try:
-        completed = subprocess.run(
-            args,
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=300,
-        )
-    except OSError as exc:
-        raise BilibiliProviderError(f"{message}：无法启动 ffmpeg。{exc}") from exc
-    except subprocess.TimeoutExpired as exc:
-        raise BilibiliProviderError(f"{message}：ffmpeg 处理超时。") from exc
-
-    if completed.returncode != 0:
-        detail = (completed.stderr or completed.stdout or "").strip().splitlines()[-1:]
-        suffix = f"：{detail[0]}" if detail else "。"
-        raise BilibiliProviderError(f"{message}{suffix}")
 
 
 def _extract_json_assignment(html: str, marker: str) -> dict[str, Any]:
@@ -771,7 +759,7 @@ def _extract_video_id(video_data: dict[str, Any], webpage_url: str) -> str:
 def _extract_bvid_cid(initial_state: dict[str, Any], webpage_url: str) -> tuple[str, int | None]:
     video_data = initial_state.get("videoData") if isinstance(initial_state.get("videoData"), dict) else {}
     bvid = str(video_data.get("bvid") or initial_state.get("bvid") or _extract_video_id(video_data, webpage_url))
-    cid = _to_int(video_data.get("cid") or initial_state.get("cid") or _first_page_cid(video_data))
+    cid = safe_to_int(video_data.get("cid") or initial_state.get("cid") or _first_page_cid(video_data))
     return bvid, cid
 
 
@@ -779,7 +767,7 @@ def _first_page_cid(video_data: dict[str, Any]) -> int | None:
     pages = video_data.get("pages")
     if not isinstance(pages, list) or not pages or not isinstance(pages[0], dict):
         return None
-    return _to_int(pages[0].get("cid"))
+    return safe_to_int(pages[0].get("cid"))
 
 
 def _extract_title_from_html(html: str) -> str | None:
@@ -788,87 +776,3 @@ def _extract_title_from_html(html: str) -> str | None:
         return None
     title = re.sub(r"\s+", " ", match.group(1)).strip()
     return title.removesuffix("_哔哩哔哩_bilibili").strip() or None
-
-
-def _validate_content_type(content_type: str, expected_types: tuple[str, ...]) -> None:
-    if not content_type:
-        raise BilibiliProviderError("B 站下载失败：媒体响应缺少 Content-Type。")
-    if any(content_type.startswith(expected_type) for expected_type in expected_types):
-        return
-    extension = mimetypes.guess_extension(content_type) or ""
-    raise BilibiliProviderError(f"B 站下载失败：媒体响应类型异常（{content_type}{extension}）。")
-
-
-def _is_bilibili_url(value: str) -> bool:
-    parsed = urlparse(value)
-    host = (parsed.hostname or "").lower()
-    return any(host == suffix or host.endswith(f".{suffix}") for suffix in BILIBILI_HOST_SUFFIXES)
-
-
-def _normalize_url(value: Any) -> str | None:
-    if not isinstance(value, str) or not value:
-        return None
-    if value.startswith("//"):
-        return f"https:{value}"
-    if value.startswith("http://"):
-        return f"https://{value[7:]}"
-    return value
-
-
-def _as_list(value: Any) -> list[Any]:
-    return value if isinstance(value, list) else []
-
-
-def _to_int(value: Any) -> int | None:
-    try:
-        if value is None:
-            return None
-        return int(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def _to_float(value: Any) -> float | None:
-    try:
-        if value is None:
-            return None
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def _codec_rank(value: str | None) -> int:
-    if not value:
-        return 0
-    lowered = value.lower()
-    if "avc" in lowered:
-        return 3
-    if "hev" in lowered or "hvc" in lowered:
-        return 2
-    return 1
-
-
-def _height_from_quality_id(value: int | None) -> int | None:
-    return {
-        120: 2160,
-        112: 1080,
-        80: 1080,
-        64: 720,
-        32: 480,
-        16: 360,
-    }.get(value or 0)
-
-
-def _safe_filename_stem(title: str, video_id: str) -> str:
-    cleaned = re.sub(r'[\\/:*?"<>|\r\n]+', " ", title).strip()
-    cleaned = re.sub(r"\s+", " ", cleaned)[:120].strip()
-    return cleaned or f"bilibili-{video_id}"
-
-
-def _friendly_http_error(exc: httpx.HTTPStatusError) -> str:
-    status_code = exc.response.status_code
-    if status_code in {403, 412, 429}:
-        return "B 站解析失败：平台限制当前服务器请求，可能触发风控、频率限制或地区/IP 限制。"
-    if status_code == 404:
-        return "B 站解析失败：未找到视频页面，链接可能失效或已被删除。"
-    return f"B 站解析失败：平台返回 HTTP {status_code}。"

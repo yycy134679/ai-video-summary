@@ -3,12 +3,14 @@ from __future__ import annotations
 import base64
 import json
 from pathlib import Path
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 import httpx
 
+from backend.app._sse_utils import iter_sse_events
 from backend.app.env_config import get_config_value
-from backend.app.providers.base import VideoServiceError
+from backend.app.providers.base import AiServiceError
 
 
 STEP_AUDIO_ASR_MODEL = "stepaudio-2.5-asr"
@@ -16,11 +18,11 @@ DEFAULT_STEP_AUDIO_ASR_URL = "https://api.stepfun.com/v1/audio/asr/sse"
 DEFAULT_TIMEOUT = httpx.Timeout(connect=8.0, read=180.0, write=30.0, pool=8.0)
 
 
-class StepAudioConfigError(VideoServiceError):
+class StepAudioConfigError(AiServiceError):
     status_code = 500
 
 
-class StepAudioError(VideoServiceError):
+class StepAudioError(AiServiceError):
     status_code = 502
 
 
@@ -88,17 +90,23 @@ def parse_stepaudio_sse(lines: Iterable[str]) -> str:
     deltas: list[str] = []
     final_text: str | None = None
 
-    for event in iter_stepaudio_sse_events(lines):
-        event_type = event.get("type")
-        if event_type == "transcript.text.delta":
+    for event_type, data_str in iter_sse_events(lines):
+        try:
+            event = json.loads(data_str)
+        except ValueError as exc:
+            raise StepAudioError("StepAudio ASR 返回了无法解析的 SSE 数据。") from exc
+        if not isinstance(event, dict):
+            raise StepAudioError("StepAudio ASR 返回了异常的 SSE 数据。")
+
+        if event.get("type") == "transcript.text.delta":
             delta = event.get("delta")
             if isinstance(delta, str):
                 deltas.append(delta)
-        elif event_type == "transcript.text.done":
+        elif event.get("type") == "transcript.text.done":
             text = event.get("text")
             if isinstance(text, str):
                 final_text = text
-        elif event_type == "error":
+        elif event.get("type") == "error":
             message = str(event.get("message") or "未知错误")
             raise StepAudioError(f"StepAudio ASR 识别失败：{message}")
 
@@ -107,42 +115,6 @@ def parse_stepaudio_sse(lines: Iterable[str]) -> str:
     if not text:
         raise StepAudioError("StepAudio ASR 未返回有效文稿。")
     return text
-
-
-def iter_stepaudio_sse_events(lines: Iterable[str]) -> Iterable[dict[str, Any]]:
-    data_lines: list[str] = []
-
-    for raw_line in lines:
-        line = raw_line.strip()
-        if not line:
-            event = _parse_data_lines(data_lines)
-            data_lines = []
-            if event is not None:
-                yield event
-            continue
-        if line.startswith(":"):
-            continue
-        if line.startswith("data:"):
-            data_lines.append(line[5:].strip())
-
-    event = _parse_data_lines(data_lines)
-    if event is not None:
-        yield event
-
-
-def _parse_data_lines(data_lines: list[str]) -> dict[str, Any] | None:
-    if not data_lines:
-        return None
-    data = "\n".join(data_lines).strip()
-    if not data or data == "[DONE]":
-        return None
-    try:
-        payload = json.loads(data)
-    except ValueError as exc:
-        raise StepAudioError("StepAudio ASR 返回了无法解析的 SSE 数据。") from exc
-    if not isinstance(payload, dict):
-        raise StepAudioError("StepAudio ASR 返回了异常的 SSE 数据。")
-    return payload
 
 
 def _api_key() -> str:

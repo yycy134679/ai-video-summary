@@ -1,0 +1,56 @@
+/* TranscriptPanel / 原文稿面板 */
+
+.transcript-panel {
+  min-width: 0;
+}
+
+.transcript-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.cue-list {
+  display: grid;
+  gap: 10px;
+}
+
+.cue-row {
+  display: grid;
+  grid-template-columns: 60px minmax(0, 1fr);
+  gap: 14px;
+  padding: 11px 12px;
+  background: #f8fbff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.cue-row time {
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.cue-row span {
+  color: #303849;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.transcript-text {
+  max-height: 620px;
+  padding: 16px;
+  overflow: auto;
+  color: #303849;
+  background: #f8fbff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 15px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  margin: 0;
+}

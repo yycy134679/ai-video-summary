@@ -2,6 +2,7 @@ import { Bot } from "lucide-react";
 import type { MouseEvent } from "react";
 
 import { Button } from "../ui/Button";
+import "./AppHeader.css";
 
 const navItems = [
   { label: "功能", target: "features" },

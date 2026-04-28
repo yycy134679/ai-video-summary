@@ -1,0 +1,88 @@
+/* VideoPreviewPanel / 视频预览面板 */
+
+.video-panel {
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.video-cover {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: #dfe8f5;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.video-cover img,
+.video-cover-empty {
+  width: 100%;
+  height: 100%;
+}
+
+.video-cover img {
+  display: block;
+  object-fit: cover;
+}
+
+.video-cover-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+  color: var(--primary);
+  text-align: center;
+}
+
+.video-cover-empty span {
+  max-width: 70%;
+  color: #3f4a5f;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.video-meta {
+  padding: 14px 2px 4px;
+}
+
+.video-meta h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 17px;
+  line-height: 1.42;
+}
+
+.meta-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 12px;
+}
+
+.meta-list span {
+  padding: 5px 9px;
+  color: #4d596b;
+  background: #f0f4f9;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.origin-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 13px;
+  color: var(--primary);
+  background: var(--primary-soft);
+  border: 1px solid rgba(0, 74, 173, 0.16);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 800;
+}

@@ -16,6 +16,31 @@ def get_config_value(name: str, default: str = "") -> str:
     return os.getenv(name, default).strip()
 
 
+def get_config_value_int(name: str, default: int) -> int:
+    """读取整数类型配置，无效时返回 default。"""
+    raw_value = get_config_value(name)
+    if not raw_value:
+        return default
+    try:
+        value = int(raw_value)
+    except ValueError:
+        return default
+    return value if value > 0 else default
+
+
+def get_config_value_bool(name: str, default: bool = False) -> bool:
+    """读取布尔类型配置，支持 1/0、true/false、yes/no、on/off。"""
+    raw_value = get_config_value(name)
+    if not raw_value:
+        return default
+    normalized = raw_value.lower()
+    if normalized in {"1", "true", "yes", "y", "on", "enabled"}:
+        return True
+    if normalized in {"0", "false", "no", "n", "off", "disabled"}:
+        return False
+    return default
+
+
 def load_dotenv_values(path: Path) -> dict[str, str]:
     if not path.exists():
         return {}

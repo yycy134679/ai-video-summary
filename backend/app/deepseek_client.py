@@ -6,8 +6,9 @@ from typing import Any
 
 import httpx
 
-from backend.app.env_config import get_config_value
-from backend.app.providers.base import VideoServiceError
+from backend.app._sse_utils import iter_sse_events
+from backend.app.env_config import get_config_value, get_config_value_bool
+from backend.app.providers.base import AiServiceError
 
 
 DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com"
@@ -16,7 +17,7 @@ DEFAULT_REQUEST_TIMEOUT_SECONDS = 900
 DEFAULT_THINKING_ENABLED = False
 
 
-class DeepSeekError(VideoServiceError):
+class DeepSeekError(AiServiceError):
     status_code = 502
 
 
@@ -103,53 +104,30 @@ def complete_json(
 
 
 def parse_deepseek_stream(lines: Iterable[str]) -> Iterator[str]:
-    data_lines: list[str] = []
+    for event_type, data_str in iter_sse_events(lines):
+        try:
+            payload = json.loads(data_str)
+        except ValueError as exc:
+            raise DeepSeekError("DeepSeek 流式响应包含无法解析的数据。") from exc
 
-    for raw_line in lines:
-        line = raw_line.strip()
-        if not line:
-            yield from _parse_stream_data(data_lines)
-            data_lines = []
+        if isinstance(payload, dict) and "error" in payload:
+            raise DeepSeekError(_payload_error_message(payload))
+        if not isinstance(payload, dict):
+            raise DeepSeekError("DeepSeek 流式响应结构异常。")
+
+        choices = payload.get("choices")
+        if not isinstance(choices, list):
             continue
-        if line.startswith(":"):
-            continue
-        if line.startswith("data:"):
-            data_lines.append(line[5:].strip())
 
-    yield from _parse_stream_data(data_lines)
-
-
-def _parse_stream_data(data_lines: list[str]) -> Iterator[str]:
-    if not data_lines:
-        return
-
-    data = "\n".join(data_lines).strip()
-    if not data or data == "[DONE]":
-        return
-
-    try:
-        payload = json.loads(data)
-    except ValueError as exc:
-        raise DeepSeekError("DeepSeek 流式响应包含无法解析的数据。") from exc
-
-    if isinstance(payload, dict) and "error" in payload:
-        raise DeepSeekError(_payload_error_message(payload))
-    if not isinstance(payload, dict):
-        raise DeepSeekError("DeepSeek 流式响应结构异常。")
-
-    choices = payload.get("choices")
-    if not isinstance(choices, list):
-        return
-
-    for choice in choices:
-        if not isinstance(choice, dict):
-            continue
-        delta = choice.get("delta")
-        if not isinstance(delta, dict):
-            continue
-        content = delta.get("content")
-        if isinstance(content, str) and content:
-            yield content
+        for choice in choices:
+            if not isinstance(choice, dict):
+                continue
+            delta = choice.get("delta")
+            if not isinstance(delta, dict):
+                continue
+            content = delta.get("content")
+            if isinstance(content, str) and content:
+                yield content
 
 
 def _chat_payload(
@@ -210,17 +188,7 @@ def _model() -> str:
 
 
 def _thinking_enabled() -> bool:
-    raw_value = get_config_value("DEEPSEEK_THINKING_ENABLED", "false")
-    return _parse_bool(raw_value, default=DEFAULT_THINKING_ENABLED)
-
-
-def _parse_bool(value: str, *, default: bool) -> bool:
-    normalized = value.strip().lower()
-    if normalized in {"1", "true", "yes", "y", "on", "enabled"}:
-        return True
-    if normalized in {"0", "false", "no", "n", "off", "disabled"}:
-        return False
-    return default
+    return get_config_value_bool("DEEPSEEK_THINKING_ENABLED", DEFAULT_THINKING_ENABLED)
 
 
 def _chat_completions_url() -> str:

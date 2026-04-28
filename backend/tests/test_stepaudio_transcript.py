@@ -117,8 +117,8 @@ def test_validate_audio_file_does_not_reject_large_audio(tmp_path: Path):
 def test_stepaudio_request_limit_cannot_exceed_safe_default(monkeypatch):
     monkeypatch.setattr(
         transcript_service,
-        "get_config_value",
-        lambda name, default="": "64" if name == "STEP_ASR_MAX_REQUEST_FILE_MB" else default,
+        "get_config_value_int",
+        lambda name, default: 64 if name == "STEP_ASR_MAX_REQUEST_FILE_MB" else default,
     )
 
     assert transcript_service._max_stepaudio_request_bytes() == transcript_service.DEFAULT_MAX_STEP_AUDIO_REQUEST_BYTES

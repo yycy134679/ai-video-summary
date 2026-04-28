@@ -1,0 +1,86 @@
+/* AnalysisPanel / 标签页和内容分析区 */
+
+.analysis-panel {
+  min-width: 0;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  min-height: 82px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.tab-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-width: 0;
+  padding: 0 10px;
+  color: #424b5e;
+  background: transparent;
+  border: 0;
+  font-size: 16px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.tab-button svg {
+  flex: 0 0 auto;
+}
+
+.tab-button-active {
+  color: var(--primary);
+}
+
+.tab-button-active::after {
+  position: absolute;
+  right: 12px;
+  bottom: 0;
+  left: 12px;
+  height: 3px;
+  content: "";
+  background: var(--primary);
+  border-radius: 999px 999px 0 0;
+}
+
+.tab-body {
+  min-height: 540px;
+  padding: 28px 28px 30px;
+}
+
+/* Responsive */
+@media (max-width: 760px) {
+  .tabs {
+    grid-template-columns: 1fr;
+    padding: 8px;
+  }
+
+  .tab-button {
+    justify-content: flex-start;
+    min-height: 48px;
+    padding: 0 12px;
+  }
+
+  .tab-button-active::after {
+    right: auto;
+    bottom: 8px;
+    left: 0;
+    width: 3px;
+    height: 32px;
+    border-radius: 999px;
+  }
+
+  .tab-body {
+    min-height: auto;
+    padding: 18px;
+  }
+}

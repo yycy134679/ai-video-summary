@@ -51,11 +51,7 @@ def test_deepseek_stream_parser_skips_reasoning_content():
 
 def test_deepseek_complete_json_sends_json_mode_and_disables_thinking(monkeypatch):
     monkeypatch.setattr(deepseek_client, "_api_key", lambda: "sk-test")
-    monkeypatch.setattr(
-        deepseek_client,
-        "get_config_value",
-        lambda name, default="": "false" if name == "DEEPSEEK_THINKING_ENABLED" else default,
-    )
+    monkeypatch.setattr(deepseek_client, "_thinking_enabled", lambda: False)
 
     def handler(request: httpx.Request) -> httpx.Response:
         payload = request.read().decode("utf-8")

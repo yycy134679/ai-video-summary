@@ -1,0 +1,49 @@
+/* MindMapPanel / 思维导图面板 */
+
+.mindmap-panel {
+  min-width: 0;
+}
+
+.mindmap-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.mindmap-canvas {
+  max-width: 100%;
+  overflow: auto;
+  background: #fbfdff;
+  border: 1px solid #d7e0ee;
+  border-radius: 18px;
+}
+
+.mindmap-canvas svg {
+  display: block;
+}
+
+.mindmap-branch-node[role="button"] {
+  cursor: pointer;
+}
+
+.mindmap-label {
+  letter-spacing: 0.01em;
+  dominant-baseline: alphabetic;
+}
+
+.mindmap-toggle circle,
+.mindmap-branch-node line {
+  transition:
+    stroke-width 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.mindmap-branch-node[role="button"]:hover line {
+  opacity: 1;
+  stroke-width: 2.4px;
+}
+
+.mindmap-branch-node[role="button"]:hover .mindmap-toggle circle {
+  stroke-width: 2.4px;
+}

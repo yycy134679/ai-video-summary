@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from backend.app.env_config import get_config_value
+from backend.app.env_config import get_config_value_int
 from backend.app.models import SubtitleCue
 
 
@@ -25,12 +25,7 @@ PartialErrorScope = Literal["transcript", "summary", "mindmap", "qa", "download_
 
 
 def custom_prompt_max_chars() -> int:
-    raw_value = get_config_value("AI_SUMMARY_CUSTOM_PROMPT_MAX_CHARS", "2000")
-    try:
-        value = int(raw_value)
-    except ValueError:
-        return 2000
-    return value if value > 0 else 2000
+    return get_config_value_int("AI_SUMMARY_CUSTOM_PROMPT_MAX_CHARS", 2000)
 
 
 class SummaryStreamRequest(BaseModel):

@@ -12,6 +12,7 @@ from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError, ExtractorError
 
 from backend.app.models import Quality, QualityOption, VideoInfo
+from backend.app.providers._provider_utils import safe_to_float, safe_to_int
 from backend.app.providers.base import DownloadResult, MissingFfmpegError, VideoServiceError
 
 
@@ -92,7 +93,7 @@ def extract_video_info(url: str) -> VideoInfo:
     return VideoInfo(
         title=str(info.get("title") or "未命名视频"),
         uploader=info.get("uploader") or info.get("channel"),
-        duration=_to_int(info.get("duration")),
+        duration=safe_to_int(info.get("duration")),
         thumbnail=info.get("thumbnail"),
         webpageUrl=str(info.get("webpage_url") or url),
         options=build_quality_options(formats),
@@ -178,15 +179,15 @@ def _best_video_format(formats: list[dict[str, Any]], spec: QualitySpec) -> dict
     candidates = [
         item
         for item in formats
-        if _has_video(item) and _height_matches(_to_int(item.get("height")), spec)
+        if _has_video(item) and _height_matches(safe_to_int(item.get("height")), spec)
     ]
     if not candidates:
         return None
     return max(
         candidates,
         key=lambda item: (
-            _to_int(item.get("height")) or 0,
-            _to_number(item.get("tbr")) or 0,
+            safe_to_int(item.get("height")) or 0,
+            safe_to_float(item.get("tbr")) or 0,
             _format_size(item) or 0,
         ),
     )
@@ -199,8 +200,8 @@ def _best_audio_format(formats: list[dict[str, Any]]) -> dict[str, Any] | None:
     return max(
         candidates,
         key=lambda item: (
-            _to_number(item.get("abr")) or 0,
-            _to_number(item.get("tbr")) or 0,
+            safe_to_float(item.get("abr")) or 0,
+            safe_to_float(item.get("tbr")) or 0,
             _format_size(item) or 0,
         ),
     )
@@ -227,7 +228,7 @@ def _format_size(item: dict[str, Any] | None) -> int | None:
     if item is None:
         return None
     size = item.get("filesize") or item.get("filesize_approx")
-    return _to_int(size)
+    return safe_to_int(size)
 
 
 def _height_matches(height: int | None, spec: QualitySpec) -> bool:
@@ -280,21 +281,3 @@ def _friendly_yt_dlp_error(exc: Exception) -> str:
     if "ffmpeg" in lower_message:
         return "ffmpeg 处理失败，请确认本机已正确安装 ffmpeg。"
     return f"视频处理失败：{message}"
-
-
-def _to_int(value: Any) -> int | None:
-    try:
-        if value is None:
-            return None
-        return int(value)
-    except (TypeError, ValueError):
-        return None
-
-
-def _to_number(value: Any) -> float | None:
-    try:
-        if value is None:
-            return None
-        return float(value)
-    except (TypeError, ValueError):
-        return None

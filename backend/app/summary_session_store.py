@@ -4,7 +4,7 @@ import threading
 import time
 import uuid
 
-from backend.app.env_config import get_config_value
+from backend.app.env_config import get_config_value_int
 from backend.app.models import VideoInfo
 from backend.app.summary_models import QaMessage, SummarySession
 
@@ -52,12 +52,7 @@ def append_qa_messages(session_id: str, question: str, answer: str) -> None:
 
 
 def session_ttl_seconds() -> int:
-    raw_value = get_config_value("AI_SUMMARY_SESSION_TTL_SECONDS", str(DEFAULT_SESSION_TTL_SECONDS))
-    try:
-        value = int(raw_value)
-    except ValueError:
-        return DEFAULT_SESSION_TTL_SECONDS
-    return value if value > 0 else DEFAULT_SESSION_TTL_SECONDS
+    return get_config_value_int("AI_SUMMARY_SESSION_TTL_SECONDS", DEFAULT_SESSION_TTL_SECONDS)
 
 
 def _prune_expired_sessions() -> None:
