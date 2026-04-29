@@ -21,3 +21,5 @@ frontend/vite.config.d.ts
 
 # Vite Dev Cache
 frontend/.vite/
+# Added by code-review-graph
+.code-review-graph/
